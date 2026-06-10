@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pronostics Coupe du Monde 2026 — Association Multisport Brochard</title>
+<meta name="description" content="Jeu de pronostics Coupe du Monde 2026 — Association Multisport Brochard." />
+
+<!-- ============================================================
+     DÉPENDANCES (toutes gratuites)
+     - React + ReactDOM + Babel : UI sans build
+     - Firebase (compat) : base de données partagée (Firestore) — plan gratuit
+     - Google Fonts : typographie
+     ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --pitch-1:#0a7d3e;--pitch-2:#0d9b4e;--night:#0b1b2b;--night-2:#13283d;
+    --gold:#ffc629;--gold-deep:#e0a500;--flame:#ff5a36;
+    --ink:#0b1b2b;--paper:#f6f8f7;--white:#fff;--muted:#6b7d8c;
+    --line:rgba(11,27,43,.10);--err:#e23b3b;
+    --shadow-lg:0 24px 60px -20px rgba(11,27,43,.45);
+    --radius:18px;--radius-sm:12px;--maxw:820px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 600px at 80% -10%,rgba(255,198,41,.18),transparent 60%),
+      radial-gradient(1000px 500px at -10% 0%,rgba(13,155,78,.20),transparent 55%),
+      linear-gradient(180deg,#eef3f0 0%,#e7eeea 100%);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .topbar{background:linear-gradient(135deg,var(--night) 0%,var(--night-2) 55%,var(--pitch-1) 140%);color:#fff;position:relative;overflow:hidden}
+  .topbar::after{content:"";position:absolute;inset:auto 0 0 0;height:6px;background:repeating-linear-gradient(90deg,var(--pitch-2) 0 28px,var(--pitch-1) 28px 56px)}
+  .topbar__inner{max-width:var(--maxw);margin:0 auto;padding:22px 20px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .crest{width:52px;height:52px;border-radius:14px;flex:0 0 auto;background:radial-gradient(circle at 30% 25%,var(--gold),var(--gold-deep));display:grid;place-items:center;font-size:26px;box-shadow:0 8px 20px -6px rgba(255,198,41,.6)}
+  .brand h1{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.5px;margin:0;font-size:clamp(20px,4.5vw,28px);line-height:1.05;text-transform:uppercase}
+  .brand p{margin:4px 0 0;font-size:13px;color:rgba(255,255,255,.72);font-weight:500}
+  .brand .accent{color:var(--gold)}
+  .tabs{max-width:var(--maxw);margin:-1px auto 0;padding:0 20px;display:flex;gap:8px;position:relative;z-index:3;transform:translateY(14px)}
+  .tab{appearance:none;border:0;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.6px;font-size:14px;font-weight:600;padding:13px 20px;border-radius:14px 14px 0 0;background:rgba(255,255,255,.55);color:var(--night);transition:.18s;backdrop-filter:blur(6px)}
+  .tab:hover{background:rgba(255,255,255,.8)}
+  .tab.is-active{background:#fff;box-shadow:0 -6px 20px -10px rgba(11,27,43,.4)}
+  main{max-width:var(--maxw);margin:0 auto;padding:30px 20px 70px}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:24px 22px;border:1px solid var(--line);animation:rise .4s ease both}
+  .card + .card{margin-top:18px}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .section-title{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:19px;margin:0 0 4px;color:var(--night);display:flex;align-items:center;gap:10px}
+  .section-sub{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-weight:600;font-size:13px;margin-bottom:6px;color:var(--night)}
+  .req{color:var(--flame)}
+  input[type=text],input[type=number],input[type=password],input[type=datetime-local],select{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:var(--radius-sm);font-size:15px;font-family:inherit;background:#fbfcfc;transition:.15s;color:var(--ink)}
+  input:focus,select:focus{outline:0;border-color:var(--pitch-2);background:#fff;box-shadow:0 0 0 4px rgba(13,155,78,.12)}
+  input:disabled{opacity:.55;background:#eef1f0;cursor:not-allowed}
+  input.invalid{border-color:var(--err);background:#fff6f6}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .err-msg{font-size:12.5px;color:var(--err);margin-top:5px;font-weight:600}
+  .btn{appearance:none;border:0;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.6px;font-weight:600;font-size:16px;padding:15px 22px;border-radius:14px;width:100%;color:#fff;background:linear-gradient(135deg,var(--pitch-2),var(--pitch-1));box-shadow:0 14px 28px -12px rgba(13,155,78,.7);transition:.18s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(0)}
+  .btn--gold{background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:var(--night);box-shadow:0 14px 28px -12px rgba(224,165,0,.7)}
+  .btn--ghost{background:transparent;color:var(--night);border:1.5px solid var(--line);box-shadow:none}
+  .btn--ghost:hover{border-color:var(--night);transform:none}
+  .btn--sm{width:auto;font-size:13px;padding:10px 16px}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .divider{height:1px;background:var(--line);margin:20px 0}
+  .group{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:#fff}
+  .group__head{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--paper);padding:13px 16px;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:15px;color:var(--night)}
+  .group__head:hover{background:#eef2f0}
+  .group__badge{background:var(--night);color:#fff;border-radius:8px;font-size:13px;padding:2px 9px}
+  .group__chev{margin-left:auto;color:var(--muted);transition:.2s;font-size:13px}
+  .group__chev.open{transform:rotate(90deg)}
+  .group__teams{margin-left:8px;font-family:'Inter';text-transform:none;letter-spacing:0;font-size:11.5px;color:var(--muted);font-weight:500;flex:1;text-align:right}
+  .group__body{padding:6px 12px 12px}
+  .gp-done{color:var(--pitch-1);font-weight:700;font-size:12px;margin-left:6px}
+  .match{display:grid;grid-template-columns:1fr 86px 1fr;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px dashed var(--line)}
+  .match:last-child{border-bottom:0}
+  .match .side{display:flex;align-items:center;gap:7px;min-width:0}
+  .match .side.right{justify-content:flex-end;text-align:right}
+  .match .flag{font-size:19px;flex:0 0 auto}
+  .match .tname{font-weight:600;font-size:13.5px;color:var(--night);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .match .sc{display:flex;align-items:center;gap:5px;justify-content:center}
+  .match .sc input{width:40px;text-align:center;font-size:17px;font-weight:700;padding:7px 2px}
+  .match .sc span{color:var(--muted);font-weight:700}
+  .match .date{grid-column:1/-1;font-size:11px;color:var(--muted);margin:-2px 0 2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .lockTag{background:#f4d4d4;color:#a32020;border-radius:6px;padding:1px 7px;font-weight:700}
+  .openTag{background:rgba(13,155,78,.12);color:#0a6e37;border-radius:6px;padding:1px 7px;font-weight:600}
+  .banner{border-radius:var(--radius-sm);padding:14px 16px;font-size:14px;line-height:1.5;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+  .banner--info{background:rgba(13,155,78,.08);border:1px solid rgba(13,155,78,.25);color:#0a6e37}
+  .banner--warn{background:rgba(255,198,41,.14);border:1px solid rgba(224,165,0,.35);color:#8a6800}
+  .banner--err{background:#fdeaea;border:1px solid #f3bcbc;color:#a32020}
+  .banner b{font-weight:700}
+  .progress{height:10px;border-radius:999px;background:#e6ebe8;overflow:hidden;margin:6px 0 4px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--pitch-2),var(--gold));transition:width .3s}
+  .scale-item{display:flex;align-items:center;gap:12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+  .scale-pts{font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;color:var(--night);background:var(--gold);border-radius:9px;padding:4px 10px;flex:0 0 auto;min-width:54px;text-align:center}
+  .lb-row{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--paper);border:1px solid var(--line);margin-bottom:8px}
+  .lb-rank{font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--muted);text-align:center}
+  .lb-row.top1{background:linear-gradient(135deg,#fff8e1,#fff);border-color:var(--gold)}
+  .lb-row.top1 .lb-rank{color:var(--gold-deep)}
+  .lb-row.top2{background:linear-gradient(135deg,#f3f4f6,#fff)}
+  .lb-row.top3{background:linear-gradient(135deg,#fbeee4,#fff)}
+  .lb-name{font-weight:600;color:var(--night);font-size:15px}
+  .lb-detail{font-size:12px;color:var(--muted);margin-top:2px}
+  .lb-pts{font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;color:var(--pitch-1);text-align:right}
+  .lb-pts small{font-size:11px;color:var(--muted);font-weight:500;display:block}
+  .exaequo{font-size:11px;background:var(--night);color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;font-weight:600}
+  .subtabs{display:flex;gap:8px;margin-bottom:16px}
+  .subtab{flex:1;appearance:none;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:11px;cursor:pointer;font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13px;letter-spacing:.4px;color:var(--muted)}
+  .subtab.on{background:var(--night);color:#fff;border-color:var(--night)}
+  .ko-card{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--paper)}
+  .saved{font-size:12px;color:var(--pitch-1);font-weight:600;text-align:right;height:16px;transition:.2s}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--night);color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:.25s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:26px;line-height:1.6}
+  @media (max-width:560px){.grid2{grid-template-columns:1fr}.card{padding:18px 14px}.match .tname{font-size:12.5px}.tab{padding:11px 14px;font-size:13px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+/* ================================================================
+   🔥 CONFIGURATION FIREBASE  — À REMPLIR (voir README, étape 1)
+   ----------------------------------------------------------------
+   Collez ici l'objet "firebaseConfig" fourni par votre projet Firebase.
+   Tant qu'il n'est pas rempli, l'app fonctionne en mode LOCAL (1 seul
+   appareil) — pratique pour tester. Une fois rempli + re-déployé, les
+   pronostics des 120 collaborateurs sont centralisés automatiquement.
+   ================================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCQQWrKgJTh_P1Khpl94CJALNbKxGOvnKM",
+  authDomain: "pronos-cdm-2026-eca85.firebaseapp.com",
+  projectId: "pronos-cdm-2026-eca85",
+  storageBucket: "pronos-cdm-2026-eca85.firebasestorage.app",
+  messagingSenderId: "810774579933",
+  appId: "1:810774579933:web:9631d5b8d17e40f3876934",
+  measurementId: "G-K9EVRVC5TQ"
+};
+
+/* ================================================================
+   🔐 MOT DE PASSE ADMIN — par défaut "Brochard2026"
+   👉 Modifier ADMIN_PASSWORD ci-dessous puis re-déployer.
+   ================================================================ */
+const ADMIN_PASSWORD = "Brochard2026";
+
+/* ================================================================
+   📊 BARÈME : bonne issue +1 ; score exact +3 (soit +2 de bonus exact)
+   ================================================================ */
+const SCALE = { issue:1, exact:3 };
+
+/* Initialisation Firebase (avec repli localStorage si non configuré) */
+let db = null;
+try{
+  if(firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("VOTRE")){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }
+}catch(e){ console.warn("Firebase non initialisé :", e); }
+const CLOUD_ON = !!db;
+
+/* ================================================================
+   🌍 ÉQUIPES + 12 GROUPES + 72 MATCHS (avec heure de coup d'envoi UTC)
+   ================================================================ */
+const FLAGS = {
+  "Mexique":"🇲🇽","Afrique du Sud":"🇿🇦","Corée du Sud":"🇰🇷","Tchéquie":"🇨🇿",
+  "Canada":"🇨🇦","Bosnie-Herzégovine":"🇧🇦","Qatar":"🇶🇦","Suisse":"🇨🇭",
+  "Brésil":"🇧🇷","Maroc":"🇲🇦","Haïti":"🇭🇹","Écosse":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "États-Unis":"🇺🇸","Paraguay":"🇵🇾","Australie":"🇦🇺","Turquie":"🇹🇷",
+  "Allemagne":"🇩🇪","Curaçao":"🇨🇼","Côte d'Ivoire":"🇨🇮","Équateur":"🇪🇨",
+  "Pays-Bas":"🇳🇱","Japon":"🇯🇵","Suède":"🇸🇪","Tunisie":"🇹🇳",
+  "Belgique":"🇧🇪","Égypte":"🇪🇬","Iran":"🇮🇷","Nouvelle-Zélande":"🇳🇿",
+  "Espagne":"🇪🇸","Cap-Vert":"🇨🇻","Arabie saoudite":"🇸🇦","Uruguay":"🇺🇾",
+  "France":"🇫🇷","Sénégal":"🇸🇳","Irak":"🇮🇶","Norvège":"🇳🇴",
+  "Argentine":"🇦🇷","Algérie":"🇩🇿","Autriche":"🇦🇹","Jordanie":"🇯🇴",
+  "Portugal":"🇵🇹","RD Congo":"🇨🇩","Ouzbékistan":"🇺🇿","Colombie":"🇨🇴",
+  "Angleterre":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Croatie":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦"
+};
+const flag = t => FLAGS[t] || "⚽";
+const GROUPS = {
+  A:["Mexique","Afrique du Sud","Corée du Sud","Tchéquie"],
+  B:["Canada","Bosnie-Herzégovine","Qatar","Suisse"],
+  C:["Brésil","Maroc","Haïti","Écosse"],
+  D:["États-Unis","Paraguay","Australie","Turquie"],
+  E:["Allemagne","Curaçao","Côte d'Ivoire","Équateur"],
+  F:["Pays-Bas","Japon","Suède","Tunisie"],
+  G:["Belgique","Égypte","Iran","Nouvelle-Zélande"],
+  H:["Espagne","Cap-Vert","Arabie saoudite","Uruguay"],
+  I:["France","Sénégal","Irak","Norvège"],
+  J:["Argentine","Algérie","Autriche","Jordanie"],
+  K:["Portugal","RD Congo","Ouzbékistan","Colombie"],
+  L:["Angleterre","Croatie","Ghana","Panama"]
+};
+const ALL_TEAMS = Object.values(GROUPS).flat().sort((a,b)=>a.localeCompare(b,"fr"));
+
+/* [date, groupe, domicile, extérieur, coup d'envoi ISO UTC] */
+const RAW = [
+  ["11 juin","A","Mexique","Afrique du Sud","2026-06-11T17:00:00Z"],["11 juin","A","Corée du Sud","Tchéquie","2026-06-12T02:00:00Z"],
+  ["12 juin","B","Canada","Bosnie-Herzégovine","2026-06-12T19:00:00Z"],["12 juin","D","États-Unis","Paraguay","2026-06-13T01:00:00Z"],
+  ["13 juin","B","Qatar","Suisse","2026-06-13T19:00:00Z"],["13 juin","C","Brésil","Maroc","2026-06-13T22:00:00Z"],["13 juin","C","Haïti","Écosse","2026-06-14T01:00:00Z"],["13 juin","D","Australie","Turquie","2026-06-14T04:00:00Z"],
+  ["14 juin","E","Allemagne","Curaçao","2026-06-14T17:00:00Z"],["14 juin","F","Pays-Bas","Japon","2026-06-14T20:00:00Z"],["14 juin","E","Côte d'Ivoire","Équateur","2026-06-14T23:00:00Z"],["14 juin","F","Suède","Tunisie","2026-06-15T02:00:00Z"],
+  ["15 juin","H","Espagne","Cap-Vert","2026-06-15T17:00:00Z"],["15 juin","G","Belgique","Égypte","2026-06-15T22:00:00Z"],["15 juin","H","Arabie saoudite","Uruguay","2026-06-15T22:00:00Z"],["15 juin","G","Iran","Nouvelle-Zélande","2026-06-16T04:00:00Z"],
+  ["16 juin","I","France","Sénégal","2026-06-16T19:00:00Z"],["16 juin","I","Irak","Norvège","2026-06-16T22:00:00Z"],["16 juin","J","Argentine","Algérie","2026-06-17T01:00:00Z"],["16 juin","J","Autriche","Jordanie","2026-06-17T04:00:00Z"],
+  ["17 juin","K","Portugal","RD Congo","2026-06-17T17:00:00Z"],["17 juin","L","Angleterre","Croatie","2026-06-17T20:00:00Z"],["17 juin","L","Ghana","Panama","2026-06-17T23:00:00Z"],["17 juin","K","Ouzbékistan","Colombie","2026-06-18T02:00:00Z"],
+  ["18 juin","A","Tchéquie","Afrique du Sud","2026-06-18T16:00:00Z"],["18 juin","B","Suisse","Bosnie-Herzégovine","2026-06-18T19:00:00Z"],["18 juin","B","Canada","Qatar","2026-06-18T22:00:00Z"],["18 juin","A","Mexique","Corée du Sud","2026-06-19T03:00:00Z"],
+  ["19 juin","D","États-Unis","Australie","2026-06-19T19:00:00Z"],["19 juin","C","Écosse","Maroc","2026-06-19T22:00:00Z"],["19 juin","C","Brésil","Haïti","2026-06-20T01:00:00Z"],["19 juin","D","Turquie","Paraguay","2026-06-20T04:00:00Z"],
+  ["20 juin","F","Pays-Bas","Suède","2026-06-20T17:00:00Z"],["20 juin","E","Allemagne","Côte d'Ivoire","2026-06-20T20:00:00Z"],["20 juin","E","Équateur","Curaçao","2026-06-21T00:00:00Z"],["20 juin","F","Tunisie","Japon","2026-06-21T04:00:00Z"],
+  ["21 juin","H","Espagne","Arabie saoudite","2026-06-21T16:00:00Z"],["21 juin","G","Belgique","Iran","2026-06-21T19:00:00Z"],["21 juin","H","Uruguay","Cap-Vert","2026-06-21T22:00:00Z"],["21 juin","G","Nouvelle-Zélande","Égypte","2026-06-22T01:00:00Z"],
+  ["22 juin","J","Argentine","Autriche","2026-06-22T17:00:00Z"],["22 juin","I","France","Irak","2026-06-22T21:00:00Z"],["22 juin","I","Norvège","Sénégal","2026-06-23T00:00:00Z"],["22 juin","J","Jordanie","Algérie","2026-06-23T03:00:00Z"],
+  ["23 juin","K","Portugal","Ouzbékistan","2026-06-23T17:00:00Z"],["23 juin","L","Angleterre","Ghana","2026-06-23T20:00:00Z"],["23 juin","L","Panama","Croatie","2026-06-23T23:00:00Z"],["23 juin","K","Colombie","RD Congo","2026-06-24T02:00:00Z"],
+  ["24 juin","B","Suisse","Canada","2026-06-24T19:00:00Z"],["24 juin","B","Bosnie-Herzégovine","Qatar","2026-06-24T19:00:00Z"],["24 juin","C","Écosse","Brésil","2026-06-24T22:00:00Z"],["24 juin","C","Maroc","Haïti","2026-06-24T22:00:00Z"],["24 juin","A","Tchéquie","Mexique","2026-06-25T01:00:00Z"],["24 juin","A","Afrique du Sud","Corée du Sud","2026-06-25T01:00:00Z"],
+  ["25 juin","E","Équateur","Allemagne","2026-06-25T20:00:00Z"],["25 juin","E","Curaçao","Côte d'Ivoire","2026-06-25T20:00:00Z"],["25 juin","F","Japon","Suède","2026-06-25T23:00:00Z"],["25 juin","F","Tunisie","Pays-Bas","2026-06-25T23:00:00Z"],["25 juin","D","Turquie","États-Unis","2026-06-26T02:00:00Z"],["25 juin","D","Paraguay","Australie","2026-06-26T02:00:00Z"],
+  ["26 juin","I","Norvège","France","2026-06-26T19:00:00Z"],["26 juin","I","Sénégal","Irak","2026-06-26T19:00:00Z"],["26 juin","H","Cap-Vert","Arabie saoudite","2026-06-27T00:00:00Z"],["26 juin","H","Uruguay","Espagne","2026-06-27T00:00:00Z"],["26 juin","G","Égypte","Iran","2026-06-27T03:00:00Z"],["26 juin","G","Nouvelle-Zélande","Belgique","2026-06-27T03:00:00Z"],
+  ["27 juin","L","Panama","Angleterre","2026-06-27T21:00:00Z"],["27 juin","L","Croatie","Ghana","2026-06-27T21:00:00Z"],["27 juin","K","Colombie","Portugal","2026-06-27T23:30:00Z"],["27 juin","K","RD Congo","Ouzbékistan","2026-06-27T23:30:00Z"],["27 juin","J","Algérie","Autriche","2026-06-28T02:00:00Z"],["27 juin","J","Jordanie","Argentine","2026-06-28T02:00:00Z"]
+];
+const MATCHES = RAW.map((m,i)=>({ id:"m"+i, dateLabel:m[0], group:m[1], home:m[2], away:m[3], ko:m[4] }));
+const matchesOfGroup = g => MATCHES.filter(m=>m.group===g);
+
+/* ================================================================
+   ⏱️ Verrouillage : un match se ferme à son coup d'envoi
+   ================================================================ */
+const deadlineMs = ko => new Date(ko).getTime();
+const isLocked = (ko, now) => ko ? now >= deadlineMs(ko) : false;
+const fmt = x => { try{ return new Date(x).toLocaleString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } };
+
+/* ================================================================
+   💾 Couche de données : Firestore si configuré, sinon localStorage
+   ================================================================ */
+const LS = {
+  get(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const DB = {
+  watchMe(uid, cb){
+    if(db) return db.collection("participants").doc(uid).onSnapshot(s=>cb(s.exists?s.data():null), e=>console.warn(e));
+    cb(LS.get("me_"+uid)); return ()=>{};
+  },
+  async saveMe(uid, data){
+    if(db) return db.collection("participants").doc(uid).set(data,{merge:true});
+    const prev=LS.get("me_"+uid)||{}; LS.set("me_"+uid, {...prev, ...data}); // fusion (préserve les pronos déjà saisis)
+  },
+  watchAll(cb){
+    if(db) return db.collection("participants").onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))), e=>console.warn(e));
+    const all=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf("me_")===0){ const v=LS.get(k); if(v) all.push({id:k.slice(3),...v}); } } cb(all); return ()=>{};
+  },
+  async deleteParticipant(id){
+    if(db) return db.collection("participants").doc(id).delete();
+    LS.del("me_"+id);
+  },
+  async clearPred(id, matchId){
+    if(db) return db.collection("participants").doc(id).update({["preds."+matchId]: firebase.firestore.FieldValue.delete()});
+    const me=LS.get("me_"+id); if(me&&me.preds){ delete me.preds[matchId]; LS.set("me_"+id, me); }
+  },
+  watchOfficial(cb){
+    if(db) return db.collection("config").doc("official").onSnapshot(s=>cb(s.exists?s.data():{results:{},knockout:[]}), e=>console.warn(e));
+    cb(LS.get("official")||{results:{},knockout:[]}); return ()=>{};
+  },
+  async saveOfficial(data){
+    if(db) return db.collection("config").doc("official").set(data,{merge:true});
+    LS.set("official", data);
+  }
+};
+
+/* Utilitaires */
+const cleanName=s=>(s||"").trim().replace(/\s+/g," ");
+const norm=s=>cleanName(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const num=v=>(v===""||v==null)?null:Number(v);
+/* Identité par e-mail (anti-doublons + même compte sur tous les appareils) */
+const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailKey=e=>norm(e).replace(/[.#$\[\]\/@]/g,"_");
+function maskEmail(e){ const s=cleanName(e); const i=s.indexOf("@"); if(i<1) return s; const u=s.slice(0,i), d=s.slice(i+1); const um=u.length<=2?u[0]+"…":u.slice(0,2)+"…"; return um+"@"+d; }
+function matchPoints(pred, real){
+  if(!pred||!real) return 0;
+  const ph=num(pred.h),pa=num(pred.a),rh=num(real.h),ra=num(real.a);
+  if(ph==null||pa==null||rh==null||ra==null) return 0;
+  if(ph===rh&&pa===ra) return SCALE.exact;
+  if(Math.sign(ph-pa)===Math.sign(rh-ra)) return SCALE.issue;
+  return 0;
+}
+function scoreParticipant(part, official){
+  const res=(official&&official.results)||{}, preds=part.preds||{};
+  const all=[...MATCHES, ...(((official&&official.knockout))||[])];
+  let total=0,exact=0,issue=0;
+  all.forEach(m=>{ const p=matchPoints(preds[m.id], res[m.id]); if(p===SCALE.exact)exact++; else if(p===SCALE.issue)issue++; total+=p; });
+  return {total,exact,issue};
+}
+/* Classement trié + rangs (ex æquo) — partagé par l'espace classement et l'organisateur */
+function computeRanking(pool, official){
+  const scored=(pool||[]).filter(p=>p&&(p.firstName||p.lastName)).map(p=>({...p, ...scoreParticipant(p,official)}));
+  scored.sort((a,b)=> b.total-a.total || ((a.lastName||"")+(a.firstName||"")+(a.email||"")).localeCompare((b.lastName||"")+(b.firstName||"")+(b.email||""),"fr"));
+  let lp=null,lr=0; scored.forEach((s,i)=>{ if(s.total!==lp){lr=i+1;lp=s.total;} s.rank=lr; });
+  const c={}; scored.forEach(s=>c[s.rank]=(c[s.rank]||0)+1); scored.forEach(s=>s.tie=c[s.rank]>1);
+  return scored;
+}
+function officialHasResult(official){
+  const res=(official&&official.results)||{};
+  const all=[...MATCHES, ...(((official&&official.knockout))||[])];
+  return all.some(m=>{ const v=res[m.id]; return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null; });
+}
+const medal=r=>r===1?"🥇":r===2?"🥈":r===3?"🥉":"";
+
+/* Horloge live (pour le verrouillage au coup d'envoi) */
+function useNow(){
+  const [now,setNow]=useState(Date.now());
+  useEffect(()=>{ const t=setInterval(()=>setNow(Date.now()),30000); return ()=>clearInterval(t); },[]);
+  return now;
+}
+
+/* ================================================================
+   COMPOSANTS UI
+   ================================================================ */
+function MatchRow({ m, val, onSet, now, lockable }){
+  const locked = lockable && isLocked(m.ko, now);
+  const v = val || {h:"",a:""};
+  return (
+    <div className="match">
+      <div className="date">
+        <span>{m.label?`🏆 ${m.label}`:`📅 ${m.dateLabel||fmt(m.ko)}`}</span>
+        {lockable && m.ko && (locked
+          ? <span className="lockTag">🔒 pronostic clos</span>
+          : <span className="openTag">⏳ clôture {fmt(deadlineMs(m.ko))}</span>)}
+      </div>
+      <div className="side"><span className="flag">{flag(m.home)}</span><span className="tname">{m.home||"—"}</span></div>
+      <div className="sc">
+        <input type="number" min="0" max="30" value={v.h} disabled={locked} onChange={e=>onSet(m.id,"h",e.target.value)} aria-label={(m.home||"")+" buts"} />
+        <span>–</span>
+        <input type="number" min="0" max="30" value={v.a} disabled={locked} onChange={e=>onSet(m.id,"a",e.target.value)} aria-label={(m.away||"")+" buts"} />
+      </div>
+      <div className="side right"><span className="tname">{m.away||"—"}</span><span className="flag">{flag(m.away)}</span></div>
+    </div>
+  );
+}
+
+function GroupGrid({ values, onSet, now, lockable }){
+  const [open,setOpen]=useState({A:true});
+  const toggle=g=>setOpen(o=>({...o,[g]:!o[g]}));
+  return (
+    <div>
+      {Object.keys(GROUPS).map(g=>{
+        const ms=matchesOfGroup(g);
+        const done=ms.filter(m=>{const v=values[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
+        return (
+          <div className="group" key={g}>
+            <button type="button" className="group__head" onClick={()=>toggle(g)}>
+              Groupe {g} <span className="group__badge">{done}/6</span>
+              {done===6 && <span className="gp-done">✓</span>}
+              <span className="group__teams">{GROUPS[g].map(t=>flag(t)).join(" ")}</span>
+              <span className={"group__chev"+(open[g]?" open":"")}>▶</span>
+            </button>
+            {open[g] && (
+              <div className="group__body">
+                {ms.map(m=> <MatchRow key={m.id} m={m} val={values[m.id]} onSet={onSet} now={now} lockable={lockable} />)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TeamSelect({ value, onChange, placeholder }){
+  return (
+    <select value={value||""} onChange={e=>onChange(e.target.value)}>
+      <option value="">{placeholder}</option>
+      {ALL_TEAMS.map(t=> <option key={t} value={t}>{flag(t)} {t}</option>)}
+    </select>
+  );
+}
+
+function ScaleCard(){
+  return (
+    <div className="card">
+      <h2 className="section-title">📊 Barème</h2>
+      <div className="scale-item"><span className="scale-pts">+{SCALE.issue}</span><span><b>Bonne issue</b> (bon vainqueur ou match nul)</span></div>
+      <div className="scale-item"><span className="scale-pts">+{SCALE.exact}</span><span><b>Score exact</b> (inclut la bonne issue + bonus)</span></div>
+      <p className="hint" style={{marginTop:10}}>Chaque match ferme aux pronostics <b>au coup d'envoi</b>.</p>
+    </div>
+  );
+}
+
+/* ================================================================
+   ESPACE COLLABORATEUR
+   ================================================================ */
+function LoginGate({ onLogin }){
+  const [first,setFirst]=useState("");
+  const [last,setLast]=useState("");
+  const [email,setEmail]=useState("");
+  const [err,setErr]=useState({});
+  function submit(e){
+    e.preventDefault();
+    const er={};
+    if(cleanName(first).length<2) er.first="Prénom requis.";
+    if(cleanName(last).length<2)  er.last="Nom requis.";
+    if(!emailRe.test(cleanName(email))) er.email="Adresse e-mail invalide.";
+    setErr(er);
+    if(Object.keys(er).length) return;
+    onLogin(cleanName(first), cleanName(last), cleanName(email));
+  }
+  return (
+    <div className="card">
+      <h2 className="section-title">🎯 Inscription</h2>
+      <p className="section-sub">Indique ton <b>prénom</b>, ton <b>nom</b> et ton <b>e-mail</b> pour accéder à tes pronostics.
+        Ton e-mail est ton <b>identifiant unique</b> : utilise le <b>même</b> sur tous tes appareils pour retrouver tes pronos. Pas de mot de passe à créer.</p>
+      <form onSubmit={submit}>
+        <div className="grid2">
+          <div className="field"><label>Prénom <span className="req">*</span></label>
+            <input type="text" value={first} className={err.first?"invalid":""} onChange={e=>setFirst(e.target.value)} placeholder="Camille" autoFocus />
+            {err.first && <div className="err-msg">{err.first}</div>}</div>
+          <div className="field"><label>Nom <span className="req">*</span></label>
+            <input type="text" value={last} className={err.last?"invalid":""} onChange={e=>setLast(e.target.value)} placeholder="Dupont" />
+            {err.last && <div className="err-msg">{err.last}</div>}</div>
+        </div>
+        <div className="field"><label>Adresse e-mail <span className="req">*</span></label>
+          <input type="text" inputMode="email" value={email} className={err.email?"invalid":""} onChange={e=>setEmail(e.target.value)} placeholder="camille.dupont@brochard.fr" />
+          {err.email && <div className="err-msg">{err.email}</div>}
+          <div className="hint">Sert uniquement à identifier tes pronostics et éviter les doublons.</div></div>
+        <button type="submit" className="btn">Accéder à mes pronostics →</button>
+      </form>
+    </div>
+  );
+}
+
+function PlayerSpace({ showToast }){
+  const now = useNow();
+  const [account,setAccount]=useState(()=>{ try{ return localStorage.getItem("brochard_email")||""; }catch(e){ return ""; } });
+  const [loaded,setLoaded]=useState(false);
+  const [me,setMe]=useState({ firstName:"", lastName:"", email:"", preds:{} });
+  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [phase,setPhase]=useState(1);
+  const [saved,setSaved]=useState("");
+  const hydrated=useRef(false);
+  const saveTimer=useRef(null);
+
+  useEffect(()=>{
+    if(!account){ setLoaded(true); return; }
+    hydrated.current=false; setLoaded(false);
+    const u1=DB.watchMe(account, d=>{ if(!hydrated.current){ if(d) setMe(m=>({...m,...d})); hydrated.current=true; setLoaded(true); } });
+    const u2=DB.watchOfficial(o=> setOfficial({results:{},knockout:[],...o}) );
+    const t=setTimeout(()=>setLoaded(true),1200);
+    return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
+  },[account]);
+
+  function login(first, last, email){
+    const key=emailKey(email);
+    try{ localStorage.setItem("brochard_email", key); }catch(e){}
+    hydrated.current=false;
+    setMe(m=>({ ...m, firstName:first, lastName:last, email }));
+    setAccount(key);
+    DB.saveMe(key, { firstName:first, lastName:last, email }); // crée le compte si nouveau (fusion sinon)
+    showToast("Bienvenue "+first+" 👋");
+  }
+  function logout(){ try{ localStorage.removeItem("brochard_email"); }catch(e){} hydrated.current=false; setMe({firstName:"",lastName:"",email:"",preds:{}}); setAccount(""); }
+
+  const setPred=useCallback((id,side,val)=>setMe(s=>{
+    const n={...s,preds:{...s.preds,[id]:{...(s.preds[id]||{h:"",a:""}),[side]:val}}};
+    clearTimeout(saveTimer.current); saveTimer.current=setTimeout(async()=>{ await DB.saveMe(account,n); setSaved("✓ enregistré"); setTimeout(()=>setSaved(""),1500); },700);
+    return n;
+  }),[account]);
+
+  const ko = official.knockout||[];
+  const filled1=MATCHES.filter(m=>{const v=me.preds[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
+  const pct1=Math.round(filled1/MATCHES.length*100);
+
+  if(!account) return (<>
+    {!CLOUD_ON && (
+      <div className="banner banner--warn"><span>⚠️</span><span><b>Mode local (test) :</b> Firebase n'est pas encore configuré, les pronostics restent sur cet appareil. Voir le README pour activer le partage entre tous les participants.</span></div>
+    )}
+    <LoginGate onLogin={login}/>
+    <ScaleCard/>
+  </>);
+
+  if(!loaded) return <div className="card"><p style={{textAlign:"center",color:"var(--muted)"}}>Chargement…</p></div>;
+
+  return (<>
+    {!CLOUD_ON && (
+      <div className="banner banner--warn"><span>⚠️</span><span><b>Mode local (test) :</b> Firebase n'est pas encore configuré, les pronostics restent sur cet appareil. Voir le README pour activer le partage entre tous les participants.</span></div>
+    )}
+
+    <div className="card">
+      <h2 className="section-title">🎯 Mes pronostics</h2>
+      <p className="section-sub">Connecté en tant que <b>{me.firstName} {me.lastName}</b> <span style={{color:"var(--muted)"}}>({me.email})</span>.
+        Pronostique les <b>scores</b> — tout est <b>sauvegardé automatiquement</b>. Chaque match se <b>ferme à son coup d'envoi</b>.</p>
+      <button className="btn btn--ghost btn--sm" onClick={logout}>↪ Changer de participant</button>
+      <div className="saved">{saved}</div>
+    </div>
+
+    <div className="card">
+      <div className="subtabs">
+        <button className={"subtab"+(phase===1?" on":"")} onClick={()=>setPhase(1)}>① Phase de poules</button>
+        <button className={"subtab"+(phase===2?" on":"")} onClick={()=>setPhase(2)}>② Phase finale</button>
+      </div>
+
+      {phase===1 && (<>
+        <div style={{fontSize:13,fontWeight:600}}>Progression : {filled1}/{MATCHES.length} matchs</div>
+        <div className="progress"><i style={{width:pct1+"%"}}></i></div>
+        <GroupGrid values={me.preds} onSet={setPred} now={now} lockable={true} />
+      </>)}
+
+      {phase===2 && (
+        ko.length===0
+          ? <div className="banner banner--info"><span>⏳</span><span>La <b>phase finale</b> n'est pas encore ouverte. Les matchs apparaîtront ici dès que les qualifiés seront connus (fin des poules).</span></div>
+          : <div>
+              {ko.map(m=> <div className="ko-card" key={m.id}><MatchRow m={m} val={me.preds[m.id]} onSet={setPred} now={now} lockable={true} /></div>)}
+            </div>
+      )}
+    </div>
+
+    <ScaleCard/>
+  </>);
+}
+
+/* ================================================================
+   CLASSEMENT (présentation, partagé)
+   ================================================================ */
+function Leaderboard({ ranking, hasResult }){
+  if(ranking.length===0) return <div className="banner banner--info"><span>ℹ️</span><span>Aucun participant pour l'instant.</span></div>;
+  if(!hasResult) return <div className="banner banner--warn"><span>⏳</span><span><b>Aucun résultat officiel saisi.</b> Le classement s'affichera dès le premier score renseigné.</span></div>;
+  return (<>
+    <p className="section-sub">Mise à jour en direct. Ex æquo = même rang.</p>
+    {ranking.map((r,i)=>(
+      <div className={"lb-row "+(r.rank===1?"top1":r.rank===2?"top2":r.rank===3?"top3":"")} key={i}>
+        <div className="lb-rank">{medal(r.rank)||r.rank}</div>
+        <div>
+          <div className="lb-name">{r.firstName} {r.lastName}{r.tie && <span className="exaequo">EX ÆQUO</span>}</div>
+          <div className="lb-detail">{r.email?maskEmail(r.email)+" · ":""}{r.exact} score(s) exact(s) · {r.issue} bonne(s) issue(s)</div>
+        </div>
+        <div className="lb-pts">{r.total}<small>points</small></div>
+      </div>
+    ))}
+  </>);
+}
+
+/* Classement côté ORGANISATEUR : e-mail complet + suppression participant + effacement d'un pronostic */
+function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred }){
+  const [open,setOpen]=useState(null);
+  if(ranking.length===0) return <div className="banner banner--info"><span>ℹ️</span><span>Aucun participant inscrit pour l'instant.</span></div>;
+  return (<>
+    <p className="section-sub">Clique sur un participant pour voir/éditer ses pronostics.
+      <b> 🗑️</b> = supprimer le participant entier · <b> ✕</b> = effacer un pronostic précis.</p>
+    {ranking.map((r,i)=>{
+      const isOpen=open===(r.id||i);
+      const entries=Object.entries(r.preds||{}).filter(([id,v])=>v&&((v.h!==""&&v.h!=null)||(v.a!==""&&v.a!=null)));
+      return (
+        <div key={r.id||i}>
+          <div className={"lb-row "+(r.rank===1?"top1":r.rank===2?"top2":r.rank===3?"top3":"")}>
+            <div className="lb-rank">{medal(r.rank)||r.rank}</div>
+            <div style={{cursor:"pointer"}} onClick={()=>setOpen(isOpen?null:(r.id||i))}>
+              <div className="lb-name">{r.firstName} {r.lastName}{r.tie && <span className="exaequo">EX ÆQUO</span>}</div>
+              <div className="lb-detail">{r.email||"— sans e-mail —"} · {r.exact} exact(s) · {r.issue} issue(s) · {entries.length} prono(s) {isOpen?"▲":"▼"}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div className="lb-pts">{r.total}<small>points</small></div>
+              <button className="btn btn--ghost btn--sm" title="Supprimer ce participant" onClick={()=>onDeleteParticipant(r)}>🗑️</button>
+            </div>
+          </div>
+          {isOpen && (
+            <div className="ko-card" style={{margin:"-2px 0 10px"}}>
+              {entries.length===0
+                ? <p className="hint" style={{margin:0}}>Aucun pronostic saisi par ce participant.</p>
+                : entries.map(([id,v])=>{ const m=matchById[id]; return (
+                    <div key={id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",borderBottom:"1px dashed var(--line)"}}>
+                      <span style={{flex:1,fontSize:13,color:"var(--night)"}}>{m?`${flag(m.home)} ${m.home} — ${m.away} ${flag(m.away)}`:id}</span>
+                      <b style={{minWidth:42,textAlign:"center"}}>{v.h}–{v.a}</b>
+                      <button className="btn btn--ghost btn--sm" title="Effacer ce pronostic" onClick={()=>onClearPred(r.id,id)}>✕</button>
+                    </div>
+                  ); })
+              }
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </>);
+}
+
+/* Onglet public : suivi du classement en direct (sans mot de passe) */
+function RankingSpace(){
+  const [loaded,setLoaded]=useState(false);
+  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [pool,setPool]=useState([]);
+  useEffect(()=>{
+    const u1=DB.watchOfficial(o=>{ setOfficial({results:{},knockout:[],...o}); setLoaded(true); });
+    const u2=DB.watchAll(list=> setPool(list||[]) );
+    const t=setTimeout(()=>setLoaded(true),1200);
+    return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
+  },[]);
+  const ranking=useMemo(()=>computeRanking(pool,official),[pool,official]);
+  const hasResult=useMemo(()=>officialHasResult(official),[official]);
+  if(!loaded) return <div className="card"><p style={{textAlign:"center",color:"var(--muted)"}}>Chargement…</p></div>;
+  return (
+    <div className="card">
+      <h2 className="section-title">📊 Classement</h2>
+      <p className="section-sub">{pool.length} participant(s){CLOUD_ON?" · base partagée en direct":""}. Le classement progresse à chaque résultat officiel saisi par l'organisateur.</p>
+      <Leaderboard ranking={ranking} hasResult={hasResult} />
+    </div>
+  );
+}
+
+/* ================================================================
+   ESPACE ADMIN
+   ================================================================ */
+function AdminSpace({ showToast }){
+  const [authed,setAuthed]=useState(false);
+  const [pwd,setPwd]=useState(""); const [pwdErr,setPwdErr]=useState(false);
+  if(!authed) return (
+    <div className="card">
+      <h2 className="section-title">🔐 Espace organisateur</h2>
+      <p className="section-sub">Accès réservé.</p>
+      <form onSubmit={e=>{e.preventDefault(); if(pwd===ADMIN_PASSWORD)setAuthed(true); else{setPwdErr(true);showToast("Mot de passe incorrect ⛔");}}}>
+        <div className="field"><label>Mot de passe <span className="req">*</span></label>
+          <input type="password" value={pwd} className={pwdErr?"invalid":""} onChange={e=>{setPwd(e.target.value);setPwdErr(false);}} placeholder="••••••••" autoFocus />
+          {pwdErr && <div className="err-msg">Mot de passe incorrect.</div>}</div>
+        <button type="submit" className="btn btn--gold">Déverrouiller</button>
+      </form>
+    </div>
+  );
+  return <AdminPanel showToast={showToast} />;
+}
+
+function AdminPanel({ showToast }){
+  const now=useNow();
+  const [loaded,setLoaded]=useState(false);
+  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [pool,setPool]=useState([]);
+  const [view,setView]=useState("results"); // results | knockout | ranking
+  const saveTimer=useRef(null);
+  const hydrated=useRef(false);
+
+  useEffect(()=>{
+    const u1=DB.watchOfficial(o=>{ if(!hydrated.current){ setOfficial({results:{},knockout:[],...o}); hydrated.current=true; } setLoaded(true); });
+    const u2=DB.watchAll(list=> setPool(list||[]) );
+    const t=setTimeout(()=>setLoaded(true),1200);
+    return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
+  },[]);
+
+  const persist=(next)=>{ setOfficial(next); clearTimeout(saveTimer.current); saveTimer.current=setTimeout(()=>{ DB.saveOfficial(next); },500); };
+  const setResult=useCallback((id,side,val)=>setOfficial(o=>{ const n={...o,results:{...o.results,[id]:{...(o.results[id]||{h:"",a:""}),[side]:val}}}; clearTimeout(saveTimer.current); saveTimer.current=setTimeout(()=>DB.saveOfficial(n),500); return n; }),[]);
+
+  // Gestion des matchs de phase finale
+  const addKo=()=>persist({...official, knockout:[...(official.knockout||[]), {id:"k"+Date.now(), label:"", home:"", away:"", ko:""}]});
+  const updKo=(i,k,v)=>{ const arr=[...official.knockout]; arr[i]={...arr[i],[k]:v}; persist({...official,knockout:arr}); };
+  const rmKo=i=>{ const arr=official.knockout.filter((_,j)=>j!==i); persist({...official,knockout:arr}); };
+
+  const resCount=MATCHES.filter(m=>{const v=official.results[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
+  const hasResult = resCount>0 || (official.knockout||[]).some(m=>{const v=official.results[m.id];return v&&v.h!==""&&v.a!=="";});
+
+  const ranking=useMemo(()=>computeRanking(pool,official),[pool,official]);
+  const matchById=useMemo(()=>{ const mp={}; [...MATCHES, ...(official.knockout||[])].forEach(m=>mp[m.id]=m); return mp; },[official.knockout]);
+
+  const removeParticipant=async(r)=>{
+    if(!r||!r.id){ showToast("Participant introuvable ⛔"); return; }
+    if(!window.confirm(`Supprimer définitivement ${r.firstName||""} ${r.lastName||""} (${r.email||r.id}) et TOUS ses pronostics ?`)) return;
+    await DB.deleteParticipant(r.id);
+    setPool(p=>p.filter(x=>x.id!==r.id));
+    showToast("Participant supprimé 🗑️");
+  };
+  const clearOnePred=async(id,matchId)=>{
+    if(!id){ showToast("Action impossible ⛔"); return; }
+    await DB.clearPred(id, matchId);
+    setPool(p=>p.map(x=>{ if(x.id!==id) return x; const np={...(x.preds||{})}; delete np[matchId]; return {...x,preds:np}; }));
+    showToast("Pronostic effacé ✕");
+  };
+
+  if(!loaded) return <div className="card"><p style={{textAlign:"center",color:"var(--muted)"}}>Chargement…</p></div>;
+
+  return (<>
+    <div className="card">
+      <h2 className="section-title">🛠️ Organisateur</h2>
+      <p className="section-sub">{CLOUD_ON ? "Connecté à la base partagée." : "Mode local (Firebase non configuré)."} {pool.length} participant(s).</p>
+      <div className="subtabs">
+        <button className={"subtab"+(view==="results"?" on":"")} onClick={()=>setView("results")}>⚽ Résultats poules</button>
+        <button className={"subtab"+(view==="knockout"?" on":"")} onClick={()=>setView("knockout")}>🏆 Phase finale</button>
+        <button className={"subtab"+(view==="ranking"?" on":"")} onClick={()=>setView("ranking")}>📊 Classement</button>
+      </div>
+    </div>
+
+    {view==="results" && (
+      <div className="card">
+        <h2 className="section-title">⚽ Résultats officiels — poules</h2>
+        <p className="section-sub">{resCount}/{MATCHES.length} renseignés. Sauvegarde automatique. Les matchs vides sont ignorés.</p>
+        <GroupGrid values={official.results} onSet={setResult} now={now} lockable={false} />
+      </div>
+    )}
+
+    {view==="knockout" && (
+      <div className="card">
+        <h2 className="section-title">🏆 Phase finale</h2>
+        <p className="section-sub">Crée les matchs à élimination directe dès que les équipes sont connues
+          (8es, quarts, demies, finale…). Indique les équipes + la date/heure du coup d'envoi
+          (les pronostics se fermeront au coup d'envoi). Renseigne le score une fois le match joué.</p>
+        {(official.knockout||[]).map((m,i)=>(
+          <div className="ko-card" key={m.id}>
+            <div className="field"><label>Intitulé du match</label>
+              <input type="text" value={m.label} onChange={e=>updKo(i,"label",e.target.value)} placeholder="ex. 8e de finale n°1" /></div>
+            <div className="grid2">
+              <div className="field"><label>Équipe 1</label><TeamSelect value={m.home} onChange={v=>updKo(i,"home",v)} placeholder="— Choisir —" /></div>
+              <div className="field"><label>Équipe 2</label><TeamSelect value={m.away} onChange={v=>updKo(i,"away",v)} placeholder="— Choisir —" /></div>
+            </div>
+            <div className="field"><label>Coup d'envoi (date &amp; heure)</label>
+              <input type="datetime-local" value={m.ko} onChange={e=>updKo(i,"ko",e.target.value)} /></div>
+            <div className="field"><label>Score officiel (laisser vide si non joué)</label>
+              <MatchRow m={m} val={official.results[m.id]} onSet={setResult} now={now} lockable={false} /></div>
+            <button className="btn btn--ghost btn--sm" onClick={()=>rmKo(i)}>Supprimer ce match</button>
+          </div>
+        ))}
+        <button className="btn btn--sm" style={{width:"100%"}} onClick={addKo}>+ Ajouter un match de phase finale</button>
+      </div>
+    )}
+
+    {view==="ranking" && (
+      <div className="card">
+        <h2 className="section-title">📊 Classement &amp; participants</h2>
+        <AdminRanking ranking={ranking} matchById={matchById} onDeleteParticipant={removeParticipant} onClearPred={clearOnePred} />
+      </div>
+    )}
+  </>);
+}
+
+/* ================================================================
+   RACINE
+   ================================================================ */
+function App(){
+  const [tab,setTab]=useState("player");
+  const [toast,setToast]=useState(""); const timer=useRef(null);
+  const showToast=msg=>{ setToast(msg); clearTimeout(timer.current); timer.current=setTimeout(()=>setToast(""),3200); };
+  return (<>
+    <header className="topbar"><div className="topbar__inner">
+      <div className="crest">🏆</div>
+      <div className="brand">
+        <h1>Pronostics <span className="accent">Coupe du Monde 2026</span></h1>
+        <p>Association Multisport Brochard · poules &amp; phase finale</p>
+      </div>
+    </div></header>
+    <nav className="tabs">
+      <button className={"tab "+(tab==="player"?"is-active":"")} onClick={()=>setTab("player")}>🎯 Je joue</button>
+      <button className={"tab "+(tab==="ranking"?"is-active":"")} onClick={()=>setTab("ranking")}>📊 Classement</button>
+      <button className={"tab "+(tab==="admin"?"is-active":"")} onClick={()=>setTab("admin")}>🔐 Organisateur</button>
+    </nav>
+    <main>
+      {tab==="player" && <PlayerSpace showToast={showToast}/>}
+      {tab==="ranking" && <RankingSpace/>}
+      {tab==="admin" && <AdminSpace showToast={showToast}/>}
+      <div className="footer-note">Jeu interne · Association Multisport Brochard · 120 collaborateurs</div>
+    </main>
+    <div className={"toast "+(toast?"show":"")}>{toast}</div>
+  </>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
