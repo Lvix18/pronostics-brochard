@@ -149,6 +149,20 @@ const firebaseConfig = {
 };
 
 /* ================================================================
+   🏷️ IDENTIFIANT DE LIGUE — pour faire PLUSIEURS instances séparées
+   ----------------------------------------------------------------
+   Laissez "" pour l'instance principale (Association Brochard).
+   Pour une 2e instance (ex. club de foot) qui partage le MÊME projet
+   Firebase mais avec un classement INDÉPENDANT : mettez un identifiant
+   unique, ex. "club". Les données sont alors stockées séparément.
+   ================================================================ */
+const LEAGUE_ID = "";
+const NS = LEAGUE_ID ? LEAGUE_ID + "_" : "";   // préfixe appliqué au stockage
+
+/* 🏟️ NOM AFFICHÉ dans le bandeau (personnalisable par instance) */
+const ORG_NAME = "Association Multisport Brochard";
+
+/* ================================================================
    🔐 MOT DE PASSE ADMIN — par défaut "Brochard2026"
    👉 Modifier ADMIN_PASSWORD ci-dessous puis re-déployer.
    ================================================================ */
@@ -241,34 +255,44 @@ const LS = {
   set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
+const PART_COL = NS + "participants";   // collection Firestore des participants (namespacée)
+const CONF_COL = NS + "config";          // collection Firestore de config (namespacée)
 const DB = {
   watchMe(uid, cb){
-    if(db) return db.collection("participants").doc(uid).onSnapshot(s=>cb(s.exists?s.data():null), e=>console.warn(e));
-    cb(LS.get("me_"+uid)); return ()=>{};
+    if(db) return db.collection(PART_COL).doc(uid).onSnapshot(s=>cb(s.exists?s.data():null), e=>console.warn(e));
+    cb(LS.get(NS+"me_"+uid)); return ()=>{};
   },
   async saveMe(uid, data){
-    if(db) return db.collection("participants").doc(uid).set(data,{merge:true});
-    const prev=LS.get("me_"+uid)||{}; LS.set("me_"+uid, {...prev, ...data}); // fusion (préserve les pronos déjà saisis)
+    if(db) return db.collection(PART_COL).doc(uid).set(data,{merge:true});
+    const prev=LS.get(NS+"me_"+uid)||{}; LS.set(NS+"me_"+uid, {...prev, ...data}); // fusion (préserve les pronos déjà saisis)
+  },
+  async getMe(uid){ // lecture ponctuelle d'un compte (vérification du code secret à la connexion)
+    if(db){ const s=await db.collection(PART_COL).doc(uid).get(); return s.exists?s.data():null; }
+    return LS.get(NS+"me_"+uid)||null;
   },
   watchAll(cb){
-    if(db) return db.collection("participants").onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))), e=>console.warn(e));
-    const all=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf("me_")===0){ const v=LS.get(k); if(v) all.push({id:k.slice(3),...v}); } } cb(all); return ()=>{};
+    if(db) return db.collection(PART_COL).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))), e=>console.warn(e));
+    const all=[]; const pfx=NS+"me_"; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf(pfx)===0){ const v=LS.get(k); if(v) all.push({id:k.slice(pfx.length),...v}); } } cb(all); return ()=>{};
   },
   async deleteParticipant(id){
-    if(db) return db.collection("participants").doc(id).delete();
-    LS.del("me_"+id);
+    if(db) return db.collection(PART_COL).doc(id).delete();
+    LS.del(NS+"me_"+id);
   },
   async clearPred(id, matchId){
-    if(db) return db.collection("participants").doc(id).update({["preds."+matchId]: firebase.firestore.FieldValue.delete()});
-    const me=LS.get("me_"+id); if(me&&me.preds){ delete me.preds[matchId]; LS.set("me_"+id, me); }
+    if(db) return db.collection(PART_COL).doc(id).update({["preds."+matchId]: firebase.firestore.FieldValue.delete()});
+    const me=LS.get(NS+"me_"+id); if(me&&me.preds){ delete me.preds[matchId]; LS.set(NS+"me_"+id, me); }
+  },
+  async resetCode(id){ // organisateur : efface le code secret (pronos conservés), le compte est de nouveau réclamable
+    if(db) return db.collection(PART_COL).doc(id).update({pinHash: firebase.firestore.FieldValue.delete()});
+    const me=LS.get(NS+"me_"+id); if(me){ delete me.pinHash; LS.set(NS+"me_"+id, me); }
   },
   watchOfficial(cb){
-    if(db) return db.collection("config").doc("official").onSnapshot(s=>cb(s.exists?s.data():{results:{},knockout:[]}), e=>console.warn(e));
-    cb(LS.get("official")||{results:{},knockout:[]}); return ()=>{};
+    if(db) return db.collection(CONF_COL).doc("official").onSnapshot(s=>cb(s.exists?s.data():{results:{},knockout:[]}), e=>console.warn(e));
+    cb(LS.get(NS+"official")||{results:{},knockout:[]}); return ()=>{};
   },
   async saveOfficial(data){
-    if(db) return db.collection("config").doc("official").set(data,{merge:true});
-    LS.set("official", data);
+    if(db) return db.collection(CONF_COL).doc("official").set(data,{merge:true});
+    LS.set(NS+"official", data);
   }
 };
 
@@ -280,6 +304,16 @@ const num=v=>(v===""||v==null)?null:Number(v);
 const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const emailKey=e=>norm(e).replace(/[.#$\[\]\/@]/g,"_");
 function maskEmail(e){ const s=cleanName(e); const i=s.indexOf("@"); if(i<1) return s; const u=s.slice(0,i), d=s.slice(i+1); const um=u.length<=2?u[0]+"…":u.slice(0,2)+"…"; return um+"@"+d; }
+/* Code secret (PIN) : haché SHA-256 + salé par l'e-mail. Jamais stocké en clair, jamais affiché. */
+async function hashPin(pin, salt){
+  const data=(salt||"")+"::pronos-brochard::"+(pin||"");
+  try{
+    const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }catch(e){ // repli si crypto.subtle indisponible (contexte non sécurisé)
+    let h=5381; for(let i=0;i<data.length;i++){ h=((h<<5)+h+data.charCodeAt(i))>>>0; } return "f"+h.toString(16);
+  }
+}
 function matchPoints(pred, real){
   if(!pred||!real) return 0;
   const ph=num(pred.h),pa=num(pred.a),rh=num(real.h),ra=num(real.a);
@@ -397,22 +431,31 @@ function LoginGate({ onLogin }){
   const [first,setFirst]=useState("");
   const [last,setLast]=useState("");
   const [email,setEmail]=useState("");
+  const [pin,setPin]=useState("");
   const [err,setErr]=useState({});
-  function submit(e){
+  const [busy,setBusy]=useState(false);
+  async function submit(e){
     e.preventDefault();
     const er={};
     if(cleanName(first).length<2) er.first="Prénom requis.";
     if(cleanName(last).length<2)  er.last="Nom requis.";
     if(!emailRe.test(cleanName(email))) er.email="Adresse e-mail invalide.";
+    if(cleanName(pin).length<4)   er.pin="Code d'au moins 4 caractères.";
     setErr(er);
     if(Object.keys(er).length) return;
-    onLogin(cleanName(first), cleanName(last), cleanName(email));
+    setBusy(true);
+    let res;
+    try{ res=await onLogin(cleanName(first), cleanName(last), cleanName(email), cleanName(pin)); }
+    catch(e){ res={error:"Erreur de connexion, réessaie."}; }
+    setBusy(false);
+    if(res && res.error) setErr({pin:res.error});
   }
   return (
     <div className="card">
       <h2 className="section-title">🎯 Inscription</h2>
-      <p className="section-sub">Indique ton <b>prénom</b>, ton <b>nom</b> et ton <b>e-mail</b> pour accéder à tes pronostics.
-        Ton e-mail est ton <b>identifiant unique</b> : utilise le <b>même</b> sur tous tes appareils pour retrouver tes pronos. Pas de mot de passe à créer.</p>
+      <p className="section-sub">Indique ton <b>prénom</b>, ton <b>nom</b>, ton <b>e-mail</b> et un <b>code secret</b> pour accéder à tes pronostics.
+        Ton e-mail est ton <b>identifiant unique</b> : utilise le <b>même</b> sur tous tes appareils pour retrouver tes pronos.
+        À ta première connexion, ton code secret est <b>enregistré</b> ; ensuite il sera <b>demandé</b> pour t'identifier et empêcher qu'on joue à ta place.</p>
       <form onSubmit={submit}>
         <div className="grid2">
           <div className="field"><label>Prénom <span className="req">*</span></label>
@@ -426,7 +469,11 @@ function LoginGate({ onLogin }){
           <input type="text" inputMode="email" value={email} className={err.email?"invalid":""} onChange={e=>setEmail(e.target.value)} placeholder="camille.dupont@brochard.fr" />
           {err.email && <div className="err-msg">{err.email}</div>}
           <div className="hint">Sert uniquement à identifier tes pronostics et éviter les doublons.</div></div>
-        <button type="submit" className="btn">Accéder à mes pronostics →</button>
+        <div className="field"><label>Code secret <span className="req">*</span></label>
+          <input type="password" autoComplete="current-password" value={pin} className={err.pin?"invalid":""} onChange={e=>setPin(e.target.value)} placeholder="Au moins 4 caractères" />
+          {err.pin && <div className="err-msg">{err.pin}</div>}
+          <div className="hint">Choisis-le à ta première connexion et retiens-le : il te protège et sera redemandé sur un nouvel appareil.</div></div>
+        <button type="submit" className="btn" disabled={busy}>{busy?"Connexion…":"Accéder à mes pronostics →"}</button>
       </form>
     </div>
   );
@@ -434,7 +481,7 @@ function LoginGate({ onLogin }){
 
 function PlayerSpace({ showToast }){
   const now = useNow();
-  const [account,setAccount]=useState(()=>{ try{ return localStorage.getItem("brochard_email")||""; }catch(e){ return ""; } });
+  const [account,setAccount]=useState(()=>{ try{ return localStorage.getItem(NS+"brochard_email")||""; }catch(e){ return ""; } });
   const [loaded,setLoaded]=useState(false);
   const [me,setMe]=useState({ firstName:"", lastName:"", email:"", preds:{} });
   const [official,setOfficial]=useState({ results:{}, knockout:[] });
@@ -452,16 +499,25 @@ function PlayerSpace({ showToast }){
     return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
   },[account]);
 
-  function login(first, last, email){
+  async function login(first, last, email, pin){
     const key=emailKey(email);
-    try{ localStorage.setItem("brochard_email", key); }catch(e){}
+    const pinHash=await hashPin(pin, key);
+    let existing=null;
+    try{ existing=await DB.getMe(key); }catch(e){}
+    if(existing && existing.pinHash){
+      // compte déjà protégé : le code doit correspondre, sinon accès refusé
+      if(existing.pinHash!==pinHash) return { error:"Code secret incorrect pour cet e-mail." };
+    }
+    try{ localStorage.setItem(NS+"brochard_email", key); }catch(e){}
     hydrated.current=false;
     setMe(m=>({ ...m, firstName:first, lastName:last, email }));
     setAccount(key);
-    DB.saveMe(key, { firstName:first, lastName:last, email }); // crée le compte si nouveau (fusion sinon)
+    // crée/réclame le compte avec son code (fusion : préserve les pronos déjà saisis)
+    DB.saveMe(key, { firstName:first, lastName:last, email, pinHash });
     showToast("Bienvenue "+first+" 👋");
+    return { ok:true };
   }
-  function logout(){ try{ localStorage.removeItem("brochard_email"); }catch(e){} hydrated.current=false; setMe({firstName:"",lastName:"",email:"",preds:{}}); setAccount(""); }
+  function logout(){ try{ localStorage.removeItem(NS+"brochard_email"); }catch(e){} hydrated.current=false; setMe({firstName:"",lastName:"",email:"",preds:{}}); setAccount(""); }
 
   const setPred=useCallback((id,side,val)=>setMe(s=>{
     const n={...s,preds:{...s.preds,[id]:{...(s.preds[id]||{h:"",a:""}),[side]:val}}};
@@ -543,12 +599,12 @@ function Leaderboard({ ranking, hasResult }){
 }
 
 /* Classement côté ORGANISATEUR : e-mail complet + suppression participant + effacement d'un pronostic */
-function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred }){
+function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, onResetCode }){
   const [open,setOpen]=useState(null);
   if(ranking.length===0) return <div className="banner banner--info"><span>ℹ️</span><span>Aucun participant inscrit pour l'instant.</span></div>;
   return (<>
     <p className="section-sub">Clique sur un participant pour voir/éditer ses pronostics.
-      <b> 🗑️</b> = supprimer le participant entier · <b> ✕</b> = effacer un pronostic précis.</p>
+      <b> 🔑</b> = réinitialiser son code secret (code oublié / compte usurpé) · <b> 🗑️</b> = supprimer le participant entier · <b> ✕</b> = effacer un pronostic précis.</p>
     {ranking.map((r,i)=>{
       const isOpen=open===(r.id||i);
       const entries=Object.entries(r.preds||{}).filter(([id,v])=>v&&((v.h!==""&&v.h!=null)||(v.a!==""&&v.a!=null)));
@@ -562,6 +618,7 @@ function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred }){
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div className="lb-pts">{r.total}<small>points</small></div>
+              <button className="btn btn--ghost btn--sm" title={r.pinHash?"Réinitialiser le code secret":"Aucun code défini pour ce participant"} disabled={!r.pinHash} onClick={()=>onResetCode(r)}>🔑</button>
               <button className="btn btn--ghost btn--sm" title="Supprimer ce participant" onClick={()=>onDeleteParticipant(r)}>🗑️</button>
             </div>
           </div>
@@ -672,6 +729,13 @@ function AdminPanel({ showToast }){
     setPool(p=>p.map(x=>{ if(x.id!==id) return x; const np={...(x.preds||{})}; delete np[matchId]; return {...x,preds:np}; }));
     showToast("Pronostic effacé ✕");
   };
+  const resetCode=async(r)=>{
+    if(!r||!r.id){ showToast("Participant introuvable ⛔"); return; }
+    if(!window.confirm(`Réinitialiser le code secret de ${r.firstName||""} ${r.lastName||""} (${r.email||r.id}) ?\n\nSes pronostics sont CONSERVÉS. À sa prochaine connexion, il choisira un nouveau code.`)) return;
+    await DB.resetCode(r.id);
+    setPool(p=>p.map(x=>x.id===r.id?{...x, pinHash:undefined}:x));
+    showToast("Code réinitialisé 🔑");
+  };
 
   if(!loaded) return <div className="card"><p style={{textAlign:"center",color:"var(--muted)"}}>Chargement…</p></div>;
 
@@ -722,7 +786,7 @@ function AdminPanel({ showToast }){
     {view==="ranking" && (
       <div className="card">
         <h2 className="section-title">📊 Classement &amp; participants</h2>
-        <AdminRanking ranking={ranking} matchById={matchById} onDeleteParticipant={removeParticipant} onClearPred={clearOnePred} />
+        <AdminRanking ranking={ranking} matchById={matchById} onDeleteParticipant={removeParticipant} onClearPred={clearOnePred} onResetCode={resetCode} />
       </div>
     )}
   </>);
@@ -740,7 +804,7 @@ function App(){
       <div className="crest">🏆</div>
       <div className="brand">
         <h1>Pronostics <span className="accent">Coupe du Monde 2026</span></h1>
-        <p>Association Multisport Brochard · poules &amp; phase finale</p>
+        <p>{ORG_NAME} · poules &amp; phase finale</p>
       </div>
     </div></header>
     <nav className="tabs">
@@ -752,7 +816,7 @@ function App(){
       {tab==="player" && <PlayerSpace showToast={showToast}/>}
       {tab==="ranking" && <RankingSpace/>}
       {tab==="admin" && <AdminSpace showToast={showToast}/>}
-      <div className="footer-note">Jeu interne · Association Multisport Brochard · 120 collaborateurs</div>
+      <div className="footer-note">Jeu interne · {ORG_NAME}</div>
     </main>
     <div className={"toast "+(toast?"show":"")}>{toast}</div>
   </>);
