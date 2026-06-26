@@ -127,7 +127,7 @@ glissez le nouveau `index.html`, **Commit changes**. GitHub remplace l'ancien au
 
 ## 🔐 Mot de passe administrateur
 
-- **Par défaut : `Brochard2026`** — modifiable via la constante `ADMIN_PASSWORD` dans `index.html`.
+- **Par défaut : `Tim050607*`** — modifiable via la constante `ADMIN_PASSWORD` dans `index.html`.
 
 ---
 
