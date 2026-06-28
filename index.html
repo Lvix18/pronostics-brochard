@@ -140,6 +140,30 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:26px;line-height:1.6}
   @media (max-width:560px){.grid2{grid-template-columns:1fr}.card{padding:18px 14px}.match .tname{font-size:12.5px}.tab{padding:11px 14px;font-size:13px}}
+  .gtable{width:100%;border-collapse:collapse;font-size:11.5px;margin:4px 0 14px}
+  .gtable th,.gtable td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--line)}
+  .gtable th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase}
+  .gtable td:nth-child(2),.gtable th:nth-child(2){text-align:left}
+  .gtable tr.qualif td{background:rgba(13,155,78,.08)}
+  .gtable caption{font-size:11px;color:var(--muted);padding:6px 2px 0;caption-side:bottom;text-align:left}
+  .bracket{display:flex;gap:var(--bk-colgap,26px);overflow-x:auto;padding:8px 30px 4px 2px;margin-bottom:6px}
+  .bracket__col{display:flex;flex-direction:column;min-width:150px;flex:0 0 auto}
+  .bracket__roundlabel{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.4px;font-size:10.5px;color:var(--muted);text-align:center;margin-bottom:8px}
+  .bracket__matches{display:flex;flex-direction:column}
+  .bracket__slot{position:relative;display:flex;align-items:center}
+  .bracket__match{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden;width:100%;height:var(--bk-matchh,56px)}
+  .bracket__team{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;font-size:11.5px;border-bottom:1px dashed var(--line);color:var(--night);height:50%;min-width:0}
+  .bracket__team:last-child{border-bottom:0}
+  .bracket__team span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .bracket__team.win{font-weight:700;background:rgba(13,155,78,.1)}
+  .bracket__team b{color:var(--pitch-1);flex:0 0 auto}
+  /* connecteurs : relient chaque match au suivant, exactement à mi-hauteur de la paire */
+  .bracket__col:not(.bracket__col--last) .bracket__slot::after{
+    content:"";position:absolute;right:calc(var(--bk-colgap,26px) * -1);width:var(--bk-colgap,26px);
+    border-right:2px solid var(--line);box-sizing:border-box;
+  }
+  .bracket__col:not(.bracket__col--last) .bracket__slot:nth-child(odd)::after{ top:50%;height:50%;border-top:2px solid var(--line); }
+  .bracket__col:not(.bracket__col--last) .bracket__slot:nth-child(even)::after{ bottom:50%;height:50%;border-bottom:2px solid var(--line); }
 </style>
 </head>
 <body>
@@ -200,6 +224,178 @@ const ROUNDS = {
   final:{ label:"Finale",          issue:50 },
 };
 const KO_EXACT = { reg:30, aet:50, pens:100 };
+
+/* ================================================================
+   🌳 ARBRE DE PHASE FINALE — structure FIXE et OFFICIELLE (32→16→8→4→2→1)
+   Affiches et enchaînement des 16es de finale conformes au tirage officiel
+   FIFA (matchs n°73 à 88, puis 89-96 pour les 8es, 97-100 pour les quarts,
+   101-102 pour les demies, 104 pour la finale — vérifié auprès de deux
+   sources concordantes le 28/06/2026 : Wikipédia "2026 FIFA World Cup
+   knockout stage" et Sky Sports). Seules les 16 affiches des "16es" (r32)
+   sont saisies/confirmées manuellement (équipes) ; tous les tours suivants
+   se déduisent automatiquement du vainqueur des matchs précédents dès
+   qu'un score est saisi — l'enchaînement entre les cases n'est PAS un
+   simple "1-2, 3-4..." mais suit l'ordre réel du tableau FIFA ci-dessous.
+   ================================================================ */
+const R32_FIXTURES = [ // ordre officiel des 16es de finale (matchs 73 à 88), avec coup d'envoi officiel (UTC)
+  ["Afrique du Sud","Canada",            "2026-06-28T19:00:00Z"], // 73
+  ["Allemagne","Paraguay",                "2026-06-29T20:30:00Z"], // 74
+  ["Pays-Bas","Maroc",                    "2026-06-30T01:00:00Z"], // 75
+  ["Brésil","Japon",                      "2026-06-29T17:00:00Z"], // 76
+  ["France","Suède",                      "2026-06-30T21:00:00Z"], // 77
+  ["Côte d'Ivoire","Norvège",             "2026-06-30T17:00:00Z"], // 78
+  ["Mexique","Équateur",                  "2026-07-01T01:00:00Z"], // 79
+  ["Angleterre","RD Congo",               "2026-07-01T16:00:00Z"], // 80
+  ["États-Unis","Bosnie-Herzégovine",     "2026-07-02T00:00:00Z"], // 81
+  ["Belgique","Sénégal",                  "2026-07-01T20:00:00Z"], // 82
+  ["Portugal","Croatie",                  "2026-07-02T23:00:00Z"], // 83
+  ["Espagne","Autriche",                  "2026-07-02T19:00:00Z"], // 84
+  ["Suisse","Algérie",                    "2026-07-03T03:00:00Z"], // 85
+  ["Argentine","Cap-Vert",                "2026-07-03T22:00:00Z"], // 86
+  ["Colombie","Ghana",                    "2026-07-04T01:30:00Z"], // 87
+  ["Australie","Égypte",                  "2026-07-03T18:00:00Z"], // 88
+];
+const BRACKET_SLOTS = [
+  ...R32_FIXTURES.map((t,i)=>({ id:"r32_"+(i+1), round:"r32", feedsFrom:null, defaultHome:t[0], defaultAway:t[1], defaultKo:t[2] })),
+  { id:"r16_1", round:"r16", feedsFrom:["r32_2","r32_5"],  defaultKo:"2026-07-04T21:00:00Z" }, // 89 : W74 vs W77
+  { id:"r16_2", round:"r16", feedsFrom:["r32_1","r32_3"],  defaultKo:"2026-07-04T17:00:00Z" }, // 90 : W73 vs W75
+  { id:"r16_3", round:"r16", feedsFrom:["r32_4","r32_6"],  defaultKo:"2026-07-05T20:00:00Z" }, // 91 : W76 vs W78
+  { id:"r16_4", round:"r16", feedsFrom:["r32_7","r32_8"],  defaultKo:"2026-07-06T00:00:00Z" }, // 92 : W79 vs W80
+  { id:"r16_5", round:"r16", feedsFrom:["r32_11","r32_12"],defaultKo:"2026-07-06T19:00:00Z" }, // 93 : W83 vs W84
+  { id:"r16_6", round:"r16", feedsFrom:["r32_9","r32_10"], defaultKo:"2026-07-06T21:00:00Z" }, // 94 : W81 vs W82
+  { id:"r16_7", round:"r16", feedsFrom:["r32_14","r32_16"],defaultKo:"2026-07-07T16:00:00Z" }, // 95 : W86 vs W88
+  { id:"r16_8", round:"r16", feedsFrom:["r32_13","r32_15"],defaultKo:"2026-07-07T20:00:00Z" }, // 96 : W85 vs W87
+  { id:"qf_1", round:"qf", feedsFrom:["r16_1","r16_2"], defaultKo:"2026-07-09T20:00:00Z" },    // 97 : W89 vs W90
+  { id:"qf_2", round:"qf", feedsFrom:["r16_5","r16_6"], defaultKo:"2026-07-10T19:00:00Z" },    // 98 : W93 vs W94
+  { id:"qf_3", round:"qf", feedsFrom:["r16_3","r16_4"], defaultKo:"2026-07-11T21:00:00Z" },    // 99 : W91 vs W92
+  { id:"qf_4", round:"qf", feedsFrom:["r16_7","r16_8"], defaultKo:"2026-07-12T01:00:00Z" },    // 100 : W95 vs W96
+  { id:"sf_1", round:"sf", feedsFrom:["qf_1","qf_2"], defaultKo:"2026-07-14T19:00:00Z" },      // 101 : W97 vs W98
+  { id:"sf_2", round:"sf", feedsFrom:["qf_3","qf_4"], defaultKo:"2026-07-15T19:00:00Z" },      // 102 : W99 vs W100
+  { id:"final_1", round:"final", feedsFrom:["sf_1","sf_2"], defaultKo:"2026-07-19T19:00:00Z" } // 104 : W101 vs W102
+];
+/* ----------------------------------------------------------------
+   Rétrocompatibilité : avant cette version, l'organisateur créait
+   chaque match de phase finale à la main (ids "k<timestamp>", stockés
+   dans official.knockout, dans un ORDRE QUI N'ÉTAIT PAS celui du tableau
+   officiel) et les pronostics des joueurs étaient enregistrés sous ces
+   mêmes ids. On ne supprime RIEN : on rattache chaque ancien match à la
+   BONNE case de l'arbre officiel en comparant les ÉQUIPES (pas l'ordre
+   de création), afin que les matchs déjà saisis et les pronostics déjà
+   donnés se retrouvent à la place qui est réellement la leur.
+   ---------------------------------------------------------------- */
+function legacyTeamMatchMap(legacyArr, official){
+  const map=new Map(); // ancien id -> nouvel id d'emplacement
+  const used=new Set();
+  const byRound={};
+  (legacyArr||[]).forEach(m=>{ if(m&&m.round) (byRound[m.round]=byRound[m.round]||[]).push(m); });
+  const results=(official&&official.results)||{};
+  const slotOf=id=>BRACKET_SLOTS.find(s=>s.id===id);
+  function localTeams(id){
+    const slot=slotOf(id);
+    if(!slot.feedsFrom) return { home:slot.defaultHome||"", away:slot.defaultAway||"" };
+    const [f1,f2]=slot.feedsFrom;
+    const t1=localTeams(f1), t2=localTeams(f2);
+    const old1=[...map.entries()].find(([,sId])=>sId===f1);
+    const old2=[...map.entries()].find(([,sId])=>sId===f2);
+    const w1=knockoutWinner(old1?results[old1[0]]:null), w2=knockoutWinner(old2?results[old2[0]]:null);
+    return {
+      home: w1 ? (w1==="home"?t1.home:t1.away) : "",
+      away: w2 ? (w2==="home"?t2.home:t2.away) : ""
+    };
+  }
+  ["r32","r16","qf","sf","final"].forEach(round=>{
+    const slots=BRACKET_SLOTS.filter(s=>s.round===round);
+    (byRound[round]||[]).forEach(m=>{
+      let best=null;
+      slots.forEach(slot=>{
+        if(used.has(slot.id)) return;
+        const t=localTeams(slot.id);
+        const setSlot=new Set([t.home,t.away].filter(Boolean));
+        const setLegacy=new Set([m.home,m.away].filter(Boolean));
+        if(setLegacy.size===0) return;
+        let score=0; setLegacy.forEach(x=>{ if(setSlot.has(x)) score++; });
+        if(score>0 && (!best||score>best.score)) best={slot,score};
+      });
+      if(best){ map.set(m.id, best.slot.id); used.add(best.slot.id); }
+    });
+  });
+  return map;
+}
+/* Calcule, pour chaque emplacement de l'arbre officiel, les deux équipes (connues ou non),
+   le résultat effectif et le pronostic de repli, et renvoie la liste complète des
+   31 matchs prête à l'emploi (scoring + affichage). */
+function resolveBracket(official){
+  const koTeams=(official&&official.koTeams)||{};
+  const koKo=(official&&official.koKo)||{};
+  const results=(official&&official.results)||{};
+  const legacyArr=(official&&official.knockout)||[];
+  const legacyById=new Map(legacyArr.map(m=>[m.id,m]));
+  const legacyMap=legacyTeamMatchMap(legacyArr, official); // ancien id -> nouvel id (par équipes)
+  const reverseLegacy=new Map(); legacyMap.forEach((slotId,oldId)=>reverseLegacy.set(slotId,oldId));
+
+  const resultFor=id=>{
+    const oldId=reverseLegacy.get(id);
+    if(hasScore(results[id])) return results[id];
+    if(oldId && hasScore(results[oldId])) return results[oldId];
+    return results[id]||{};
+  };
+  const byId=new Map();
+  const slotOf=id=>BRACKET_SLOTS.find(s=>s.id===id);
+  function teamsFor(id){
+    if(byId.has(id)) return byId.get(id);
+    const slot=slotOf(id);
+    const oldId=reverseLegacy.get(id);
+    const legacyMatch=oldId?legacyById.get(oldId):null;
+    const override=koTeams[id]||{};
+    let home=override.home || (legacyMatch&&legacyMatch.home) || slot.defaultHome || "";
+    let away=override.away || (legacyMatch&&legacyMatch.away) || slot.defaultAway || "";
+    if(slot.feedsFrom && (!home || !away)){
+      const [f1,f2]=slot.feedsFrom;
+      const t1=teamsFor(f1), t2=teamsFor(f2);
+      const w1=knockoutWinner(resultFor(f1)), w2=knockoutWinner(resultFor(f2));
+      if(!home) home = w1 ? (w1==="home"?t1.home:t1.away) : "";
+      if(!away) away = w2 ? (w2==="home"?t2.home:t2.away) : "";
+    }
+    const v={home,away}; byId.set(id,v); return v;
+  }
+  return BRACKET_SLOTS.map(slot=>{
+    const t=teamsFor(slot.id);
+    const oldId=reverseLegacy.get(slot.id);
+    const legacyMatch=oldId?legacyById.get(oldId):null;
+    const num=(BRACKET_DISPLAY_ORDER[slot.round]||[]).indexOf(slot.id)+1;
+    return {
+      id:slot.id, round:slot.round,
+      label:`${ROUNDS[slot.round].label} — Match ${num}`,
+      home:t.home, away:t.away,
+      ko: koKo[slot.id] || (legacyMatch&&legacyMatch.ko) || slot.defaultKo || "",
+      legacyId: oldId||null,
+      result: resultFor(slot.id)
+    };
+  });
+}
+/* Pronostic d'un joueur pour un match de phase finale : nouvel id en priorité, sinon ancien id (repli) */
+const predFor=(preds,m)=> hasScore((preds||{})[m.id]) ? preds[m.id] : (m.legacyId ? (preds||{})[m.legacyId] : (preds||{})[m.id]);
+
+/* ----------------------------------------------------------------
+   Ordre d'AFFICHAGE (emboîtement visuel) de chaque tour : contrairement
+   à l'ordre des numéros de match FIFA (73,74,75…), pour qu'un arbre se
+   lise correctement il faut que les deux cases qui se rejoignent au
+   tour suivant soient toujours listées côte à côte. Cet ordre ne change
+   rien au calcul (qui reste piloté par feedsFrom) — il ne sert qu'à
+   l'affichage du tableau visuel.
+   ---------------------------------------------------------------- */
+const BRACKET_DISPLAY_ORDER = {
+  r32:  ["r32_2","r32_5","r32_1","r32_3","r32_11","r32_12","r32_9","r32_10","r32_4","r32_6","r32_7","r32_8","r32_14","r32_16","r32_13","r32_15"],
+  r16:  ["r16_1","r16_2","r16_5","r16_6","r16_3","r16_4","r16_7","r16_8"],
+  qf:   ["qf_1","qf_2","qf_3","qf_4"],
+  sf:   ["sf_1","sf_2"],
+  final:["final_1"]
+};
+function orderedRound(ko, round){
+  const order=BRACKET_DISPLAY_ORDER[round]||[];
+  const byId={}; ko.forEach(m=>{ if(m.round===round) byId[m.id]=m; });
+  return order.map(id=>byId[id]).filter(Boolean);
+}
 
 /* Initialisation Firebase (avec repli localStorage si non configuré) */
 let db = null;
@@ -315,8 +511,8 @@ const DB = {
     const me=LS.get(NS+"me_"+id); if(me){ delete me.pinHash; LS.set(NS+"me_"+id, me); }
   },
   watchOfficial(cb){
-    if(db) return db.collection(CONF_COL).doc("official").onSnapshot(s=>cb(s.exists?s.data():{results:{},knockout:[]}), e=>console.warn(e));
-    cb(LS.get(NS+"official")||{results:{},knockout:[]}); return ()=>{};
+    if(db) return db.collection(CONF_COL).doc("official").onSnapshot(s=>cb(s.exists?s.data():{results:{},koTeams:{},koKo:{}}), e=>console.warn(e));
+    cb(LS.get(NS+"official")||{results:{},koTeams:{},koKo:{}}); return ()=>{};
   },
   async saveOfficial(data){
     if(db) return db.collection(CONF_COL).doc("official").set(data,{merge:true});
@@ -328,6 +524,7 @@ const DB = {
 const cleanName=s=>(s||"").trim().replace(/\s+/g," ");
 const norm=s=>cleanName(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const num=v=>(v===""||v==null)?null:Number(v);
+const hasScore=v=>!!v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;
 /* Identité par e-mail (anti-doublons + même compte sur tous les appareils) */
 const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const emailKey=e=>norm(e).replace(/[.#$\[\]\/@]/g,"_");
@@ -385,10 +582,10 @@ function knockoutPoints(pred, real, round){
 }
 function scoreParticipant(part, official){
   const res=(official&&official.results)||{}, preds=part.preds||{};
-  const ko=((official&&official.knockout))||[];
+  const ko=resolveBracket(official);
   let total=0,exact=0,issue=0;
   MATCHES.forEach(m=>{ const p=matchPoints(preds[m.id], res[m.id]); if(p===SCALE.exact)exact++; else if(p===SCALE.issue)issue++; total+=p; });
-  ko.forEach(m=>{ const r=knockoutPoints(preds[m.id], res[m.id], m.round); total+=r.total; exact+=r.exact; issue+=r.issue; });
+  ko.forEach(m=>{ const r=knockoutPoints(predFor(preds,m), m.result, m.round); total+=r.total; exact+=r.exact; issue+=r.issue; });
   return {total,exact,issue};
 }
 /* Classement trié + rangs (ex æquo) — partagé par l'espace classement et l'organisateur */
@@ -401,8 +598,9 @@ function computeRanking(pool, official){
 }
 function officialHasResult(official){
   const res=(official&&official.results)||{};
-  const all=[...MATCHES, ...(((official&&official.knockout))||[])];
-  return all.some(m=>{ const v=res[m.id]; return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null; });
+  const groupHas=MATCHES.some(m=>hasScore(res[m.id]));
+  const koHas=resolveBracket(official).some(m=>hasScore(m.result));
+  return groupHas || koHas;
 }
 const medal=r=>r===1?"🥇":r===2?"🥈":r===3?"🥉":"";
 
@@ -417,7 +615,8 @@ function useNow(){
    COMPOSANTS UI
    ================================================================ */
 function MatchRow({ m, val, onSet, now, lockable }){
-  const locked = lockable && isLocked(m.ko, now);
+  const notReady = !!m.round && (!m.home || !m.away);
+  const locked = notReady || (lockable && isLocked(m.ko, now));
   const v = val || {h:"",a:""};
   const nh=num(v.h), na=num(v.a);
   const showAet = !!m.round && nh!=null && na!=null && nh!==na;
@@ -426,7 +625,8 @@ function MatchRow({ m, val, onSet, now, lockable }){
     <div className="match">
       <div className="date">
         <span>{m.label?`🏆 ${m.round&&ROUNDS[m.round]?ROUNDS[m.round].label+" — ":""}${m.label}`:`📅 ${m.dateLabel||fmt(m.ko)}`}</span>
-        {lockable && m.ko && (locked
+        {notReady && <span className="lockTag">⏳ équipes pas encore connues</span>}
+        {!notReady && lockable && m.ko && (locked
           ? <span className="lockTag">🔒 pronostic clos</span>
           : <span className="openTag">⏳ clôture {fmt(deadlineMs(m.ko))}</span>)}
       </div>
@@ -455,7 +655,61 @@ function MatchRow({ m, val, onSet, now, lockable }){
   );
 }
 
-function GroupGrid({ values, onSet, now, lockable }){
+/* Classement d'un groupe à partir des RÉSULTATS OFFICIELS (3 pts victoire / 1 nul) */
+/* Critères FIFA dans l'ordre : points, différence de buts, buts marqués,
+   confrontation directe (entre 2 équipes), puis ordre alphabétique
+   (à défaut de fair-play / tirage au sort en cas d'égalité totale à 3+). */
+function computeGroupStandings(g, results){
+  const table={}; GROUPS[g].forEach(t=>table[t]={team:t,pts:0,gf:0,ga:0,w:0,d:0,l:0,p:0});
+  const h2h={}; // h2h[A][B] = points pris par A face à B
+  matchesOfGroup(g).forEach(m=>{
+    const v=(results||{})[m.id];
+    const h=num(v&&v.h), a=num(v&&v.a);
+    if(h==null||a==null) return;
+    const H=table[m.home],A=table[m.away];
+    H.p++; A.p++; H.gf+=h; H.ga+=a; A.gf+=a; A.ga+=h;
+    if(h>a){ H.w++; H.pts+=3; A.l++; }
+    else if(h<a){ A.w++; A.pts+=3; H.l++; }
+    else { H.d++; A.d++; H.pts++; A.pts++; }
+    h2h[m.home]=h2h[m.home]||{}; h2h[m.away]=h2h[m.away]||{};
+    h2h[m.home][m.away]= h>a?3:(h===a?1:0);
+    h2h[m.away][m.home]= a>h?3:(h===a?1:0);
+  });
+  const arr=Object.values(table);
+  arr.sort((x,y)=>{
+    if(y.pts!==x.pts) return y.pts-x.pts;
+    const xd=x.gf-x.ga, yd=y.gf-y.ga;
+    if(yd!==xd) return yd-xd;
+    if(y.gf!==x.gf) return y.gf-x.gf;
+    const xh=h2h[x.team]&&h2h[x.team][y.team], yh=h2h[y.team]&&h2h[y.team][x.team];
+    if(xh!=null && yh!=null && xh!==yh) return yh-xh; // confrontation directe
+    return x.team.localeCompare(y.team,"fr");
+  });
+  return arr;
+}
+function GroupTable({ g, results }){
+  const rows=useMemo(()=>computeGroupStandings(g,results),[g,results]);
+  const anyPlayed=rows.some(r=>r.p>0);
+  return (
+    <table className="gtable">
+      <thead><tr><th>#</th><th>Équipe</th><th>J</th><th>G</th><th>N</th><th>P</th><th>BP</th><th>BC</th><th>Diff</th><th>Pts</th></tr></thead>
+      <tbody>
+        {rows.map((r,i)=>(
+          <tr key={r.team} className={i<2?"qualif":""}>
+            <td>{i+1}</td>
+            <td>{flag(r.team)} {r.team}</td>
+            <td>{r.p}</td><td>{r.w}</td><td>{r.d}</td><td>{r.l}</td>
+            <td>{r.gf}</td><td>{r.ga}</td><td>{(r.gf-r.ga)>0?"+":""}{r.gf-r.ga}</td>
+            <td><b>{r.pts}</b></td>
+          </tr>
+        ))}
+      </tbody>
+      {!anyPlayed && <caption>Aucun résultat officiel saisi pour ce groupe — classement à 0 partout.</caption>}
+    </table>
+  );
+}
+
+function GroupGrid({ values, onSet, now, lockable, results }){
   const [open,setOpen]=useState({A:true});
   const toggle=g=>setOpen(o=>({...o,[g]:!o[g]}));
   return (
@@ -473,9 +727,57 @@ function GroupGrid({ values, onSet, now, lockable }){
             </button>
             {open[g] && (
               <div className="group__body">
+                <GroupTable g={g} results={results} />
                 {ms.map(m=> <MatchRow key={m.id} m={m} val={values[m.id]} onSet={onSet} now={now} lockable={lockable} />)}
               </div>
             )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Arbre de phase finale — se reconstruit tout seul à chaque score officiel saisi */
+/* Hauteur (en unités de base) de l'emplacement d'un match selon son tour : elle DOUBLE
+   à chaque tour (16es=1, 8es=2, quarts=4, demies=8, finale=16). Comme le match est
+   toujours centré dans son emplacement, ça place mathématiquement chaque case
+   exactement à mi-hauteur de ses deux matchs précédents — sans aucun calcul pixel
+   à la main, et les connecteurs CSS (::after) se branchent automatiquement au bon endroit. */
+const BRACKET_ROUNDS_ORDER=["r32","r16","qf","sf","final"];
+function BracketTree({ official }){
+  const ko=useMemo(()=>resolveBracket(official),[official]);
+  const MATCH_H=56, GAP=10, UNIT=MATCH_H+GAP;
+  return (
+    <div className="bracket" style={{"--bk-matchh":MATCH_H+"px"}}>
+      {BRACKET_ROUNDS_ORDER.map((rk,colIdx)=>{
+        const slotH=UNIT*Math.pow(2,colIdx);
+        const isLast=colIdx===BRACKET_ROUNDS_ORDER.length-1;
+        return (
+          <div className={"bracket__col"+(isLast?" bracket__col--last":"")} key={rk}>
+            <div className="bracket__roundlabel">{ROUNDS[rk].label}</div>
+            <div className="bracket__matches">
+              {orderedRound(ko,rk).map(m=>{
+                const res=m.result||{};
+                const w=knockoutWinner(res);
+                const hScore = (res.h!==""&&res.h!=null) ? res.h : null;
+                const aScore = (res.a!==""&&res.a!=null) ? res.a : null;
+                return (
+                  <div className="bracket__slot" key={m.id} style={{height:slotH+"px"}}>
+                    <div className="bracket__match">
+                      <div className={"bracket__team"+(w==="home"?" win":"")}>
+                        <span>{m.home ? `${flag(m.home)} ${m.home}` : "À déterminer"}</span>
+                        {hScore!=null && <b>{hScore}</b>}
+                      </div>
+                      <div className={"bracket__team"+(w==="away"?" win":"")}>
+                        <span>{m.away ? `${flag(m.away)} ${m.away}` : "À déterminer"}</span>
+                        {aScore!=null && <b>{aScore}</b>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
@@ -571,7 +873,7 @@ function PlayerSpace({ showToast }){
   const [account,setAccount]=useState(()=>{ try{ return localStorage.getItem(NS+"brochard_email")||""; }catch(e){ return ""; } });
   const [loaded,setLoaded]=useState(false);
   const [me,setMe]=useState({ firstName:"", lastName:"", email:"", preds:{} });
-  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [official,setOfficial]=useState({ results:{}, koTeams:{}, koKo:{} });
   const [phase,setPhase]=useState(1);
   const [saved,setSaved]=useState("");
   const hydrated=useRef(false);
@@ -581,7 +883,7 @@ function PlayerSpace({ showToast }){
     if(!account){ setLoaded(true); return; }
     hydrated.current=false; setLoaded(false);
     const u1=DB.watchMe(account, d=>{ if(!hydrated.current){ if(d) setMe(m=>({...m,...d})); hydrated.current=true; setLoaded(true); } });
-    const u2=DB.watchOfficial(o=> setOfficial({results:{},knockout:[],...o}) );
+    const u2=DB.watchOfficial(o=> setOfficial({results:{},koTeams:{},koKo:{},...o}) );
     const t=setTimeout(()=>setLoaded(true),1200);
     return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
   },[account]);
@@ -612,7 +914,10 @@ function PlayerSpace({ showToast }){
     return n;
   }),[account]);
 
-  const ko = official.knockout||[];
+  const ko = useMemo(()=>{
+    const all=resolveBracket(official);
+    return ["r32","r16","qf","sf","final"].flatMap(rk=>orderedRound(all,rk)).filter(m=>m.home&&m.away);
+  },[official]);
   const filled1=MATCHES.filter(m=>{const v=me.preds[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
   const pct1=Math.round(filled1/MATCHES.length*100);
 
@@ -648,16 +953,17 @@ function PlayerSpace({ showToast }){
       {phase===1 && (<>
         <div style={{fontSize:13,fontWeight:600}}>Progression : {filled1}/{MATCHES.length} matchs</div>
         <div className="progress"><i style={{width:pct1+"%"}}></i></div>
-        <GroupGrid values={me.preds} onSet={setPred} now={now} lockable={true} />
+        <GroupGrid values={me.preds} onSet={setPred} now={now} lockable={true} results={official.results} />
       </>)}
 
-      {phase===2 && (
-        ko.length===0
+      {phase===2 && (<>
+        <BracketTree official={official} />
+        {ko.length===0
           ? <div className="banner banner--info"><span>⏳</span><span>La <b>phase finale</b> n'est pas encore ouverte. Les matchs apparaîtront ici dès que les qualifiés seront connus (fin des poules).</span></div>
           : <div>
-              {ko.map(m=> <div className="ko-card" key={m.id}><MatchRow m={m} val={me.preds[m.id]} onSet={setPred} now={now} lockable={true} /></div>)}
-            </div>
-      )}
+              {ko.map(m=> <div className="ko-card" key={m.id}><MatchRow m={m} val={predFor(me.preds,m)} onSet={setPred} now={now} lockable={true} /></div>)}
+            </div>}
+      </>)}
     </div>
 
     <ScaleCard/>
@@ -732,10 +1038,10 @@ function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, on
 /* Onglet public : suivi du classement en direct (sans mot de passe) */
 function RankingSpace(){
   const [loaded,setLoaded]=useState(false);
-  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [official,setOfficial]=useState({ results:{}, koTeams:{}, koKo:{} });
   const [pool,setPool]=useState([]);
   useEffect(()=>{
-    const u1=DB.watchOfficial(o=>{ setOfficial({results:{},knockout:[],...o}); setLoaded(true); });
+    const u1=DB.watchOfficial(o=>{ setOfficial({results:{},koTeams:{},koKo:{},...o}); setLoaded(true); });
     const u2=DB.watchAll(list=> setPool(list||[]) );
     const t=setTimeout(()=>setLoaded(true),1200);
     return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
@@ -773,17 +1079,76 @@ function AdminSpace({ showToast }){
   return <AdminPanel showToast={showToast} />;
 }
 
+/* Espace organisateur : saisie des 16 affiches de 16es + scores. L'arbre (8es, quarts, demies, finale)
+   se déduit automatiquement des vainqueurs, via resolveBracket(). */
+function AdminKnockout({ official, persist, setResult, now }){
+  const ko=useMemo(()=>resolveBracket(official),[official]);
+  const koTeams=official.koTeams||{};
+  const koKo=official.koKo||{};
+  const updTeam=(id,side,val)=>{ const nt={...koTeams,[id]:{...(koTeams[id]||{}),[side]:val}}; persist({...official,koTeams:nt}); };
+  const updKoDate=(id,val)=>{ const nk={...koKo,[id]:val}; persist({...official,koKo:nk}); };
+
+  const r32=ko.filter(m=>m.round==="r32");
+  const assigned=r32.flatMap(m=>[m.home,m.away]).filter(Boolean);
+  const seen=new Set(), dupSet=new Set();
+  assigned.forEach(t=>{ if(seen.has(t)) dupSet.add(t); seen.add(t); });
+
+  return (
+    <div className="card">
+      <h2 className="section-title">🏆 Phase finale</h2>
+      <p className="section-sub">Renseigne les <b>16 affiches des 16es de finale</b> (équipes) ci-dessous.
+        Les tours suivants (8es, quarts, demies, finale) se <b>construisent automatiquement</b> dès que tu saisis
+        le score d'un match : le vainqueur avance tout seul à la case suivante de l'arbre.</p>
+
+      {dupSet.size>0 && (
+        <div className="banner banner--err"><span>⚠️</span><span><b>Doublon détecté :</b> {Array.from(dupSet).join(", ")} apparaî(ssen)t plusieurs fois dans les 16es. Corrige avant de continuer.</span></div>
+      )}
+      {dupSet.size===0 && assigned.length<32 && (
+        <div className="banner banner--warn"><span>⏳</span><span>{assigned.length}/32 équipes renseignées dans les 16es de finale.</span></div>
+      )}
+      {dupSet.size===0 && assigned.length===32 && (
+        <div className="banner banner--info"><span>✅</span><span>Les 32 équipes des 16es de finale sont renseignées, sans doublon.</span></div>
+      )}
+
+      <BracketTree official={official} />
+
+      <div className="divider"/>
+      {Object.keys(ROUNDS).map(rk=>(
+        <div key={rk}>
+          <p className="section-sub" style={{margin:"14px 0 6px"}}><b>{ROUNDS[rk].label}</b></p>
+          {orderedRound(ko,rk).map(m=>(
+            <div className="ko-card" key={m.id}>
+              {rk==="r32" && (
+                <div className="grid2">
+                  <div className="field"><label>Équipe 1</label><TeamSelect value={(koTeams[m.id]&&koTeams[m.id].home)||m.home} onChange={v=>updTeam(m.id,"home",v)} placeholder="— Choisir —" /></div>
+                  <div className="field"><label>Équipe 2</label><TeamSelect value={(koTeams[m.id]&&koTeams[m.id].away)||m.away} onChange={v=>updTeam(m.id,"away",v)} placeholder="— Choisir —" /></div>
+                </div>
+              )}
+              <p className="hint" style={{margin:"0 0 10px"}}>
+                📅 Coup d'envoi officiel : <b>{m.ko ? fmt(m.ko) : "à confirmer"}</b>
+                {" "}<button type="button" className="btn btn--ghost btn--sm" style={{padding:"2px 8px",fontSize:11,marginLeft:6}} onClick={()=>{ const v=window.prompt("Nouvelle date/heure de coup d'envoi (format AAAA-MM-JJTHH:MM, heure UTC)", m.ko||""); if(v!=null) updKoDate(m.id, v); }}>modifier</button>
+              </p>
+              <div className="field"><label>Score officiel (laisser vide si non joué)</label>
+                <MatchRow m={m} val={m.result} onSet={setResult} now={now} lockable={false} /></div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminPanel({ showToast }){
   const now=useNow();
   const [loaded,setLoaded]=useState(false);
-  const [official,setOfficial]=useState({ results:{}, knockout:[] });
+  const [official,setOfficial]=useState({ results:{}, koTeams:{}, koKo:{} });
   const [pool,setPool]=useState([]);
   const [view,setView]=useState("results"); // results | knockout | ranking
   const saveTimer=useRef(null);
   const hydrated=useRef(false);
 
   useEffect(()=>{
-    const u1=DB.watchOfficial(o=>{ if(!hydrated.current){ setOfficial({results:{},knockout:[],...o}); hydrated.current=true; } setLoaded(true); });
+    const u1=DB.watchOfficial(o=>{ if(!hydrated.current){ setOfficial({results:{},koTeams:{},koKo:{},...o}); hydrated.current=true; } setLoaded(true); });
     const u2=DB.watchAll(list=> setPool(list||[]) );
     const t=setTimeout(()=>setLoaded(true),1200);
     return ()=>{ u1&&u1(); u2&&u2(); clearTimeout(t); };
@@ -792,16 +1157,12 @@ function AdminPanel({ showToast }){
   const persist=(next)=>{ setOfficial(next); clearTimeout(saveTimer.current); saveTimer.current=setTimeout(()=>{ DB.saveOfficial(next); },500); };
   const setResult=useCallback((id,side,val)=>setOfficial(o=>{ const n={...o,results:{...o.results,[id]:{...(o.results[id]||{h:"",a:""}),[side]:val}}}; clearTimeout(saveTimer.current); saveTimer.current=setTimeout(()=>DB.saveOfficial(n),500); return n; }),[]);
 
-  // Gestion des matchs de phase finale
-  const addKo=()=>persist({...official, knockout:[...(official.knockout||[]), {id:"k"+Date.now(), round:"", label:"", home:"", away:"", ko:""}]});
-  const updKo=(i,k,v)=>{ const arr=[...official.knockout]; arr[i]={...arr[i],[k]:v}; persist({...official,knockout:arr}); };
-  const rmKo=i=>{ const arr=official.knockout.filter((_,j)=>j!==i); persist({...official,knockout:arr}); };
-
-  const resCount=MATCHES.filter(m=>{const v=official.results[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
-  const hasResult = resCount>0 || (official.knockout||[]).some(m=>{const v=official.results[m.id];return v&&v.h!==""&&v.a!=="";});
+  const resCount=MATCHES.filter(m=>hasScore(official.results[m.id])).length;
+  const bracket=useMemo(()=>resolveBracket(official),[official]);
+  const hasResult = resCount>0 || bracket.some(m=>hasScore(m.result));
 
   const ranking=useMemo(()=>computeRanking(pool,official),[pool,official]);
-  const matchById=useMemo(()=>{ const mp={}; [...MATCHES, ...(official.knockout||[])].forEach(m=>mp[m.id]=m); return mp; },[official.knockout]);
+  const matchById=useMemo(()=>{ const mp={}; MATCHES.forEach(m=>mp[m.id]=m); bracket.forEach(m=>{ mp[m.id]=m; if(m.legacyId) mp[m.legacyId]=m; }); return mp; },[bracket]);
 
   const removeParticipant=async(r)=>{
     if(!r||!r.id){ showToast("Participant introuvable ⛔"); return; }
@@ -841,38 +1202,12 @@ function AdminPanel({ showToast }){
       <div className="card">
         <h2 className="section-title">⚽ Résultats officiels — poules</h2>
         <p className="section-sub">{resCount}/{MATCHES.length} renseignés. Sauvegarde automatique. Les matchs vides sont ignorés.</p>
-        <GroupGrid values={official.results} onSet={setResult} now={now} lockable={false} />
+        <GroupGrid values={official.results} onSet={setResult} now={now} lockable={false} results={official.results} />
       </div>
     )}
 
     {view==="knockout" && (
-      <div className="card">
-        <h2 className="section-title">🏆 Phase finale</h2>
-        <p className="section-sub">Crée les matchs à élimination directe dès que les équipes sont connues
-          (8es, quarts, demies, finale…). Indique les équipes + la date/heure du coup d'envoi
-          (les pronostics se fermeront au coup d'envoi). Renseigne le score une fois le match joué.</p>
-        {(official.knockout||[]).map((m,i)=>(
-          <div className="ko-card" key={m.id}>
-            <div className="field"><label>Tour</label>
-              <select value={m.round||""} onChange={e=>updKo(i,"round",e.target.value)}>
-                <option value="">— Choisir —</option>
-                {Object.keys(ROUNDS).map(k=> <option key={k} value={k}>{ROUNDS[k].label} (+{ROUNDS[k].issue}pts bonne issue)</option>)}
-              </select></div>
-            <div className="field"><label>Intitulé du match</label>
-              <input type="text" value={m.label} onChange={e=>updKo(i,"label",e.target.value)} placeholder="ex. 8e de finale n°1" /></div>
-            <div className="grid2">
-              <div className="field"><label>Équipe 1</label><TeamSelect value={m.home} onChange={v=>updKo(i,"home",v)} placeholder="— Choisir —" /></div>
-              <div className="field"><label>Équipe 2</label><TeamSelect value={m.away} onChange={v=>updKo(i,"away",v)} placeholder="— Choisir —" /></div>
-            </div>
-            <div className="field"><label>Coup d'envoi (date &amp; heure)</label>
-              <input type="datetime-local" value={m.ko} onChange={e=>updKo(i,"ko",e.target.value)} /></div>
-            <div className="field"><label>Score officiel (laisser vide si non joué)</label>
-              <MatchRow m={m} val={official.results[m.id]} onSet={setResult} now={now} lockable={false} /></div>
-            <button className="btn btn--ghost btn--sm" onClick={()=>rmKo(i)}>Supprimer ce match</button>
-          </div>
-        ))}
-        <button className="btn btn--sm" style={{width:"100%"}} onClick={addKo}>+ Ajouter un match de phase finale</button>
-      </div>
+      <AdminKnockout official={official} persist={persist} setResult={setResult} now={now} />
     )}
 
     {view==="ranking" && (
