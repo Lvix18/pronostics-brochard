@@ -373,8 +373,9 @@ function resolveBracket(official){
     };
   });
 }
-/* Pronostic d'un joueur pour un match de phase finale : nouvel id en priorité, sinon ancien id (repli) */
-const predFor=(preds,m)=> hasScore((preds||{})[m.id]) ? preds[m.id] : (m.legacyId ? (preds||{})[m.legacyId] : (preds||{})[m.id]);
+/* Pronostic d'un joueur pour un match de phase finale : nouvel id en priorité (dès qu'il existe, même
+   partiellement rempli), sinon ancien id (repli) — uniquement si le nouvel id n'a jamais été touché. */
+const predFor=(preds,m)=>{ const p=(preds||{})[m.id]; return p!=null ? p : (m.legacyId ? (preds||{})[m.legacyId] : p); };
 
 /* ----------------------------------------------------------------
    Ordre d'AFFICHAGE (emboîtement visuel) de chaque tour : contrairement
