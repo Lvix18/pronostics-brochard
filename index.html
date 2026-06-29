@@ -508,6 +508,10 @@ const DB = {
     if(db) return db.collection(PART_COL).doc(id).update({["preds."+matchId]: firebase.firestore.FieldValue.delete()});
     const me=LS.get(NS+"me_"+id); if(me&&me.preds){ delete me.preds[matchId]; LS.set(NS+"me_"+id, me); }
   },
+  async setPred(id, matchId, value){ // organisateur : corrige le pronostic d'un participant (ex. saisie buguée)
+    if(db) return db.collection(PART_COL).doc(id).update({["preds."+matchId]: value});
+    const me=LS.get(NS+"me_"+id); if(me){ me.preds={...(me.preds||{}),[matchId]:value}; LS.set(NS+"me_"+id, me); }
+  },
   async resetCode(id){ // organisateur : efface le code secret (pronos conservés), le compte est de nouveau réclamable
     if(db) return db.collection(PART_COL).doc(id).update({pinHash: firebase.firestore.FieldValue.delete()});
     const me=LS.get(NS+"me_"+id); if(me){ delete me.pinHash; LS.set(NS+"me_"+id, me); }
@@ -1004,12 +1008,37 @@ function Leaderboard({ ranking, hasResult }){
 }
 
 /* Classement côté ORGANISATEUR : e-mail complet + suppression participant + effacement d'un pronostic */
-function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, onResetCode }){
+function AdminPredRow({ id, v, m, onClearPred, onSetPred }){
+  const [editing,setEditing]=useState(false);
+  const [eh,setEh]=useState(v.h??"");
+  const [ea,setEa]=useState(v.a??"");
+  if(editing){
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",borderBottom:"1px dashed var(--line)"}}>
+        <span style={{flex:1,fontSize:13,color:"var(--night)"}}>{m?`${flag(m.home)} ${m.home} — ${m.away} ${flag(m.away)}`:id}</span>
+        <input type="number" min="0" max="30" style={{width:44,textAlign:"center"}} value={eh} onChange={e=>setEh(e.target.value)} aria-label="buts domicile" />
+        <span>–</span>
+        <input type="number" min="0" max="30" style={{width:44,textAlign:"center"}} value={ea} onChange={e=>setEa(e.target.value)} aria-label="buts extérieur" />
+        <button className="btn btn--ghost btn--sm" title="Enregistrer" onClick={()=>{ onSetPred(id, {...v, h:eh, a:ea}); setEditing(false); }}>💾</button>
+        <button className="btn btn--ghost btn--sm" title="Annuler" onClick={()=>{ setEh(v.h??""); setEa(v.a??""); setEditing(false); }}>✕</button>
+      </div>
+    );
+  }
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",borderBottom:"1px dashed var(--line)"}}>
+      <span style={{flex:1,fontSize:13,color:"var(--night)"}}>{m?`${flag(m.home)} ${m.home} — ${m.away} ${flag(m.away)}`:id}</span>
+      <b style={{minWidth:42,textAlign:"center"}}>{v.h}–{v.a}</b>
+      <button className="btn btn--ghost btn--sm" title="Corriger ce pronostic" onClick={()=>setEditing(true)}>✎</button>
+      <button className="btn btn--ghost btn--sm" title="Effacer ce pronostic" onClick={()=>onClearPred(id)}>🗑️</button>
+    </div>
+  );
+}
+function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, onResetCode, onSetPred }){
   const [open,setOpen]=useState(null);
   if(ranking.length===0) return <div className="banner banner--info"><span>ℹ️</span><span>Aucun participant inscrit pour l'instant.</span></div>;
   return (<>
     <p className="section-sub">Clique sur un participant pour voir/éditer ses pronostics.
-      <b> 🔑</b> = réinitialiser son code secret (code oublié / compte usurpé) · <b> 🗑️</b> = supprimer le participant entier · <b> ✕</b> = effacer un pronostic précis.</p>
+      <b> 🔑</b> = réinitialiser son code secret (code oublié / compte usurpé) · <b> 🗑️</b> (ligne participant) = supprimer le participant entier · <b> ✎</b> = corriger un pronostic précis (ex. saisie buguée) · <b> 🗑️</b> (ligne pronostic) = l'effacer.</p>
     {ranking.map((r,i)=>{
       const isOpen=open===(r.id||i);
       const entries=Object.entries(r.preds||{}).filter(([id,v])=>v&&((v.h!==""&&v.h!=null)||(v.a!==""&&v.a!=null)));
@@ -1031,13 +1060,7 @@ function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, on
             <div className="ko-card" style={{margin:"-2px 0 10px"}}>
               {entries.length===0
                 ? <p className="hint" style={{margin:0}}>Aucun pronostic saisi par ce participant.</p>
-                : entries.map(([id,v])=>{ const m=matchById[id]; return (
-                    <div key={id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 2px",borderBottom:"1px dashed var(--line)"}}>
-                      <span style={{flex:1,fontSize:13,color:"var(--night)"}}>{m?`${flag(m.home)} ${m.home} — ${m.away} ${flag(m.away)}`:id}</span>
-                      <b style={{minWidth:42,textAlign:"center"}}>{v.h}–{v.a}</b>
-                      <button className="btn btn--ghost btn--sm" title="Effacer ce pronostic" onClick={()=>onClearPred(r.id,id)}>✕</button>
-                    </div>
-                  ); })
+                : entries.map(([id,v])=> <AdminPredRow key={id} id={id} v={v} m={matchById[id]} onClearPred={mid=>onClearPred(r.id,mid)} onSetPred={(mid,val)=>onSetPred(r.id,mid,val)} />)
               }
             </div>
           )}
@@ -1189,6 +1212,12 @@ function AdminPanel({ showToast }){
     setPool(p=>p.map(x=>{ if(x.id!==id) return x; const np={...(x.preds||{})}; delete np[matchId]; return {...x,preds:np}; }));
     showToast("Pronostic effacé ✕");
   };
+  const setOnePred=async(id,matchId,value)=>{
+    if(!id){ showToast("Action impossible ⛔"); return; }
+    await DB.setPred(id, matchId, value);
+    setPool(p=>p.map(x=>{ if(x.id!==id) return x; return {...x,preds:{...(x.preds||{}),[matchId]:value}}; }));
+    showToast("Pronostic corrigé ✎");
+  };
   const resetCode=async(r)=>{
     if(!r||!r.id){ showToast("Participant introuvable ⛔"); return; }
     if(!window.confirm(`Réinitialiser le code secret de ${r.firstName||""} ${r.lastName||""} (${r.email||r.id}) ?\n\nSes pronostics sont CONSERVÉS. À sa prochaine connexion, il choisira un nouveau code.`)) return;
@@ -1225,7 +1254,7 @@ function AdminPanel({ showToast }){
     {view==="ranking" && (
       <div className="card">
         <h2 className="section-title">📊 Classement &amp; participants</h2>
-        <AdminRanking ranking={ranking} matchById={matchById} onDeleteParticipant={removeParticipant} onClearPred={clearOnePred} onResetCode={resetCode} />
+        <AdminRanking ranking={ranking} matchById={matchById} onDeleteParticipant={removeParticipant} onClearPred={clearOnePred} onSetPred={setOnePred} onResetCode={resetCode} />
       </div>
     )}
   </>);
