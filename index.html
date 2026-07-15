@@ -222,6 +222,7 @@ const ROUNDS = {
   r16:  { label:"8es de finale",   issue:20 },
   qf:   { label:"Quarts de finale",issue:30 },
   sf:   { label:"Demi-finales",    issue:40 },
+  tp:   { label:"Petite finale",   issue:30 }, // même barème que les quarts de finale
   final:{ label:"Finale",          issue:50 },
 };
 const KO_EXACT = { reg:30, aet:50, pens:100 };
@@ -230,7 +231,8 @@ const KO_EXACT = { reg:30, aet:50, pens:100 };
    🌳 ARBRE DE PHASE FINALE — structure FIXE et OFFICIELLE (32→16→8→4→2→1)
    Affiches et enchaînement des 16es de finale conformes au tirage officiel
    FIFA (matchs n°73 à 88, puis 89-96 pour les 8es, 97-100 pour les quarts,
-   101-102 pour les demies, 104 pour la finale — vérifié auprès de deux
+   101-102 pour les demies, 103 pour la petite finale (perdants des demies),
+   104 pour la finale — vérifié auprès de deux
    sources concordantes le 28/06/2026 : Wikipédia "2026 FIFA World Cup
    knockout stage" et Sky Sports). Seules les 16 affiches des "16es" (r32)
    sont saisies/confirmées manuellement (équipes) ; tous les tours suivants
@@ -272,6 +274,7 @@ const BRACKET_SLOTS = [
   { id:"qf_4", round:"qf", feedsFrom:["r16_7","r16_8"], defaultKo:"2026-07-12T01:00:00Z" },    // 100 : W95 vs W96
   { id:"sf_1", round:"sf", feedsFrom:["qf_1","qf_2"], defaultKo:"2026-07-14T19:00:00Z" },      // 101 : W97 vs W98
   { id:"sf_2", round:"sf", feedsFrom:["qf_3","qf_4"], defaultKo:"2026-07-15T19:00:00Z" },      // 102 : W99 vs W100
+  { id:"tp_1", round:"tp", feedsFrom:["sf_1","sf_2"], takesLosers:true, defaultKo:"2026-07-18T19:00:00Z" }, // 103 : L101 vs L102 (petite finale — perdants des demies)
   { id:"final_1", round:"final", feedsFrom:["sf_1","sf_2"], defaultKo:"2026-07-19T19:00:00Z" } // 104 : W101 vs W102
 ];
 /* ----------------------------------------------------------------
@@ -324,7 +327,7 @@ function legacyTeamMatchMap(legacyArr, official){
 }
 /* Calcule, pour chaque emplacement de l'arbre officiel, les deux équipes (connues ou non),
    le résultat effectif et le pronostic de repli, et renvoie la liste complète des
-   31 matchs prête à l'emploi (scoring + affichage). */
+   32 matchs (petite finale incluse) prête à l'emploi (scoring + affichage). */
 function resolveBracket(official){
   const koTeams=(official&&official.koTeams)||{};
   const koKo=(official&&official.koKo)||{};
@@ -354,8 +357,10 @@ function resolveBracket(official){
       const [f1,f2]=slot.feedsFrom;
       const t1=teamsFor(f1), t2=teamsFor(f2);
       const w1=knockoutWinner(resultFor(f1)), w2=knockoutWinner(resultFor(f2));
-      if(!home) home = w1 ? (w1==="home"?t1.home:t1.away) : "";
-      if(!away) away = w2 ? (w2==="home"?t2.home:t2.away) : "";
+      /* takesLosers (petite finale) : la case reçoit le PERDANT du match précédent, pas le vainqueur */
+      const pick=(w,t)=> slot.takesLosers ? (w==="home"?t.away:t.home) : (w==="home"?t.home:t.away);
+      if(!home) home = w1 ? pick(w1,t1) : "";
+      if(!away) away = w2 ? pick(w2,t2) : "";
     }
     const v={home,away}; byId.set(id,v); return v;
   }
@@ -391,6 +396,7 @@ const BRACKET_DISPLAY_ORDER = {
   r16:  ["r16_1","r16_2","r16_5","r16_6","r16_3","r16_4","r16_7","r16_8"],
   qf:   ["qf_1","qf_2","qf_3","qf_4"],
   sf:   ["sf_1","sf_2"],
+  tp:   ["tp_1"],
   final:["final_1"]
 };
 function orderedRound(ko, round){
@@ -764,6 +770,25 @@ const BRACKET_ROUNDS_ORDER=["r32","r16","qf","sf","final"];
 function BracketTree({ official }){
   const ko=useMemo(()=>resolveBracket(official),[official]);
   const MATCH_H=56, GAP=10, UNIT=MATCH_H+GAP;
+  const tp=ko.find(m=>m.round==="tp");
+  const box=m=>{
+    const res=m.result||{};
+    const w=knockoutWinner(res);
+    const hScore = (res.h!==""&&res.h!=null) ? res.h : null;
+    const aScore = (res.a!==""&&res.a!=null) ? res.a : null;
+    return (
+      <div className="bracket__match">
+        <div className={"bracket__team"+(w==="home"?" win":"")}>
+          <span>{m.home ? `${flag(m.home)} ${m.home}` : "À déterminer"}</span>
+          {hScore!=null && <b>{hScore}</b>}
+        </div>
+        <div className={"bracket__team"+(w==="away"?" win":"")}>
+          <span>{m.away ? `${flag(m.away)} ${m.away}` : "À déterminer"}</span>
+          {aScore!=null && <b>{aScore}</b>}
+        </div>
+      </div>
+    );
+  };
   return (
     <div className="bracket" style={{"--bk-matchh":MATCH_H+"px"}}>
       {BRACKET_ROUNDS_ORDER.map((rk,colIdx)=>{
@@ -773,26 +798,18 @@ function BracketTree({ official }){
           <div className={"bracket__col"+(isLast?" bracket__col--last":"")} key={rk}>
             <div className="bracket__roundlabel">{ROUNDS[rk].label}</div>
             <div className="bracket__matches">
-              {orderedRound(ko,rk).map(m=>{
-                const res=m.result||{};
-                const w=knockoutWinner(res);
-                const hScore = (res.h!==""&&res.h!=null) ? res.h : null;
-                const aScore = (res.a!==""&&res.a!=null) ? res.a : null;
-                return (
-                  <div className="bracket__slot" key={m.id} style={{height:slotH+"px"}}>
-                    <div className="bracket__match">
-                      <div className={"bracket__team"+(w==="home"?" win":"")}>
-                        <span>{m.home ? `${flag(m.home)} ${m.home}` : "À déterminer"}</span>
-                        {hScore!=null && <b>{hScore}</b>}
-                      </div>
-                      <div className={"bracket__team"+(w==="away"?" win":"")}>
-                        <span>{m.away ? `${flag(m.away)} ${m.away}` : "À déterminer"}</span>
-                        {aScore!=null && <b>{aScore}</b>}
-                      </div>
+              {orderedRound(ko,rk).map(m=>(
+                <div className="bracket__slot" key={m.id} style={{height:slotH+"px"}}>
+                  {box(m)}
+                  {/* la petite finale (perdants des demies) s'affiche juste sous la finale */}
+                  {isLast && tp && (
+                    <div style={{position:"absolute",top:`calc(50% + ${MATCH_H/2+16}px)`,left:0,right:0}}>
+                      <div className="bracket__roundlabel" style={{margin:"0 0 4px"}}>{ROUNDS.tp.label}</div>
+                      {box(tp)}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -932,7 +949,7 @@ function PlayerSpace({ showToast }){
 
   const ko = useMemo(()=>{
     const all=resolveBracket(official);
-    return ["r32","r16","qf","sf","final"].flatMap(rk=>orderedRound(all,rk)).filter(m=>m.home&&m.away);
+    return ["r32","r16","qf","sf","tp","final"].flatMap(rk=>orderedRound(all,rk)).filter(m=>m.home&&m.away);
   },[official]);
   const filled1=MATCHES.filter(m=>{const v=me.preds[m.id];return v&&v.h!==""&&v.h!=null&&v.a!==""&&v.a!=null;}).length;
   const pct1=Math.round(filled1/MATCHES.length*100);
@@ -1132,8 +1149,9 @@ function AdminKnockout({ official, persist, setResult, now }){
     <div className="card">
       <h2 className="section-title">🏆 Phase finale</h2>
       <p className="section-sub">Renseigne les <b>16 affiches des 16es de finale</b> (équipes) ci-dessous.
-        Les tours suivants (8es, quarts, demies, finale) se <b>construisent automatiquement</b> dès que tu saisis
-        le score d'un match : le vainqueur avance tout seul à la case suivante de l'arbre.</p>
+        Les tours suivants (8es, quarts, demies, petite finale, finale) se <b>construisent automatiquement</b> dès que tu saisis
+        le score d'un match : le vainqueur avance tout seul à la case suivante de l'arbre
+        (et les <b>perdants des demies</b> se retrouvent en petite finale).</p>
 
       {dupSet.size>0 && (
         <div className="banner banner--err"><span>⚠️</span><span><b>Doublon détecté :</b> {Array.from(dupSet).join(", ")} apparaî(ssen)t plusieurs fois dans les 16es. Corrige avant de continuer.</span></div>
