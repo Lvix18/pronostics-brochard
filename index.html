@@ -165,6 +165,66 @@
   }
   .bracket__col:not(.bracket__col--last) .bracket__slot:nth-child(odd)::after{ top:50%;height:50%;border-top:2px solid var(--line); }
   .bracket__col:not(.bracket__col--last) .bracket__slot:nth-child(even)::after{ bottom:50%;height:50%;border-bottom:2px solid var(--line); }
+
+  /* ============================================================
+     🏆 CÉRÉMONIE DE CLÔTURE (annonce du vainqueur après la finale)
+     ============================================================ */
+  .cer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:18px;
+       background:radial-gradient(circle at 50% 12%,rgba(255,198,41,.22),transparent 55%),
+                  linear-gradient(160deg,#06121e 0%,var(--night) 45%,#08301f 100%);
+       animation:cer-in 520ms var(--ease-out) both;overflow-x:hidden;overflow-y:auto}
+  @keyframes cer-in{from{opacity:0}to{opacity:1}}
+  .cer.is-closing{animation:cer-out 380ms ease forwards}
+  @keyframes cer-out{to{opacity:0;transform:scale(1.04)}}
+  .cer__canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  /* halo de projecteurs qui balaie l'arrière-plan */
+  .cer__rays{position:absolute;inset:-50%;pointer-events:none;opacity:.16;
+       background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,198,41,.55) 0deg 4deg,transparent 4deg 26deg);
+       -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 12%,transparent 68%);
+       mask-image:radial-gradient(circle at 50% 50%,#000 12%,transparent 68%);
+       animation:cer-spin 40s linear infinite;mix-blend-mode:screen}
+  @keyframes cer-spin{to{transform:rotate(360deg)}}
+  .cer__box{position:relative;z-index:2;width:min(560px,100%);text-align:center;color:#fff}
+  .cer__close{position:absolute;top:14px;right:14px;z-index:3;appearance:none;border:0;cursor:pointer;
+       width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:19px;backdrop-filter:blur(6px)}
+  .cer__kicker{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:3px;font-size:12px;
+       color:var(--gold);margin:10px 0 6px;animation:cer-rise 600ms var(--ease-out) both;animation-delay:.15s}
+  .cer__cup{font-size:70px;line-height:1;filter:drop-shadow(0 12px 26px rgba(255,198,41,.55));
+       animation:cer-pop 900ms var(--ease-out) both,cer-float 3.4s ease-in-out 1s infinite}
+  @keyframes cer-pop{0%{opacity:0;transform:scale(.3) rotate(-25deg)}60%{transform:scale(1.18) rotate(6deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+  @keyframes cer-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .cer__champ{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:clamp(26px,7vw,42px);line-height:1.05;
+       margin:8px 0 2px;background:linear-gradient(100deg,#fff 15%,var(--gold) 45%,#fff 75%);
+       -webkit-background-clip:text;background-clip:text;color:transparent;background-size:280% 100%;
+       animation:cer-rise 700ms var(--ease-out) both,cer-shine 3.2s linear 1s infinite;animation-delay:.3s,1s}
+  @keyframes cer-shine{to{background-position:280% 0}}
+  .cer__flag{font-size:52px;display:block;animation:cer-rise 700ms var(--ease-out) both;animation-delay:.25s}
+  .cer__score{font-size:14px;color:rgba(255,255,255,.72);margin:0;animation:cer-rise 700ms var(--ease-out) both;animation-delay:.4s}
+  .cer__sep{height:1px;background:linear-gradient(90deg,transparent,rgba(255,198,41,.6),transparent);margin:22px 0 18px;
+       animation:cer-rise 600ms ease both;animation-delay:.55s}
+  .cer__winner{background:linear-gradient(150deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
+       border:1.5px solid rgba(255,198,41,.55);border-radius:20px;padding:20px 18px;backdrop-filter:blur(8px);
+       box-shadow:0 26px 60px -24px rgba(0,0,0,.8);animation:cer-rise 700ms var(--ease-out) both;animation-delay:.7s}
+  .cer__winner-name{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:clamp(21px,5.5vw,30px);
+       color:var(--gold);margin:6px 0 4px;line-height:1.15}
+  .cer__winner-pts{font-family:'Oswald',sans-serif;font-size:30px;color:#fff}
+  .cer__winner-pts small{font-size:12px;letter-spacing:1px;color:rgba(255,255,255,.65);margin-left:6px;text-transform:uppercase}
+  .cer__podium{display:flex;justify-content:center;gap:10px;margin-top:18px;
+       animation:cer-rise 700ms var(--ease-out) both;animation-delay:.95s}
+  .cer__step{flex:1;max-width:150px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);
+       border-radius:14px;padding:10px 8px;font-size:12.5px;color:rgba(255,255,255,.9);overflow:hidden}
+  .cer__step b{display:block;font-size:13px;color:#fff;margin:3px 0 1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cer__step span{font-size:20px}
+  .cer__step i{font-style:normal;color:var(--gold);font-weight:600}
+  .cer__actions{margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+       animation:cer-rise 700ms var(--ease-out) both;animation-delay:1.15s}
+  @keyframes cer-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .cer-replay{margin-top:12px}
+  @media (prefers-reduced-motion:reduce){
+    .cer,.cer__cup,.cer__champ,.cer__rays,.cer__kicker,.cer__flag,.cer__score,.cer__sep,
+    .cer__winner,.cer__podium,.cer__actions{animation:none!important}
+    .cer__champ{color:var(--gold);-webkit-text-fill-color:var(--gold)}
+  }
 </style>
 </head>
 <body>
@@ -1087,6 +1147,131 @@ function AdminRanking({ ranking, matchById, onDeleteParticipant, onClearPred, on
   </>);
 }
 
+/* ================================================================
+   🏆 CÉRÉMONIE DE CLÔTURE
+   Dès que le score de la FINALE (final_1) est saisi par l'organisateur,
+   l'app annonce le champion du monde ET le vainqueur du concours.
+   S'ouvre automatiquement une fois par appareil (mémorisé en local),
+   puis reste rejouable via le bouton « Revoir la cérémonie ».
+   ================================================================ */
+/* Renvoie {champion, runnerUp, score} si la finale est jouée, sinon null */
+function finalOutcome(official){
+  const fin=resolveBracket(official).find(m=>m.id==="final_1");
+  if(!fin) return null;
+  const w=knockoutWinner(fin.result);
+  if(!w || !fin.home || !fin.away) return null;
+  const r=fin.result||{};
+  const pens=(num(r.pens_h)!=null&&num(r.pens_a)!=null) ? ` (${r.pens_h}–${r.pens_a} t.a.b.)` : (r.aet?" (a.p.)":"");
+  return {
+    champion: w==="home"?fin.home:fin.away,
+    runnerUp: w==="home"?fin.away:fin.home,
+    score: `${fin.home} ${r.h}–${r.a} ${fin.away}${pens}`
+  };
+}
+
+/* Confettis : canvas + requestAnimationFrame, sans aucune dépendance externe */
+function useConfetti(canvasRef, active){
+  useEffect(()=>{
+    if(!active) return;
+    if(window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+    const cv=canvasRef.current; if(!cv) return;
+    const ctx=cv.getContext("2d");
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    let W=0,H=0;
+    const resize=()=>{ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); };
+    resize(); window.addEventListener("resize",resize);
+    const COLORS=["#ffc629","#e0a500","#ff5a36","#ffffff","#0d9b4e","#4ea9ff"];
+    const parts=[];
+    const spawn=(n,burst)=>{ for(let i=0;i<n;i++) parts.push({
+      x:Math.random()*W, y:burst?H*0.35+Math.random()*40:-20-Math.random()*H*0.5,
+      vx:(Math.random()-.5)*(burst?7:2), vy:burst?-6-Math.random()*7:1.4+Math.random()*2.6,
+      w:5+Math.random()*7, h:8+Math.random()*8, rot:Math.random()*Math.PI, vr:(Math.random()-.5)*.28,
+      col:COLORS[(Math.random()*COLORS.length)|0], life:1
+    }); };
+    spawn(90,true); spawn(70,false);
+    let raf=null, t0=performance.now(), stopped=false;
+    const tick=now=>{
+      const elapsed=now-t0;
+      ctx.clearRect(0,0,W,H);
+      /* on ré-alimente doucement pendant 6 s, puis on laisse retomber */
+      if(elapsed<6000 && parts.length<260 && Math.random()<.35) spawn(3,false);
+      for(let i=parts.length-1;i>=0;i--){
+        const p=parts[i];
+        p.vy+=0.13; p.vx*=0.995; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr;
+        if(elapsed>6000) p.life-=0.006;
+        if(p.y>H+40 || p.life<=0){ parts.splice(i,1); continue; }
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+        ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.col;
+        ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*(0.4+0.6*Math.abs(Math.cos(p.rot))));
+        ctx.restore();
+      }
+      if(parts.length===0 && elapsed>6000){ stopped=true; return; }
+      if(!stopped) raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+    return ()=>{ stopped=true; cancelAnimationFrame(raf); window.removeEventListener("resize",resize); };
+  },[active]);
+}
+
+function WinnerCeremony({ outcome, ranking, onClose }){
+  const canvasRef=useRef(null);
+  const [closing,setClosing]=useState(false);
+  useConfetti(canvasRef,true);
+  const close=()=>{ setClosing(true); setTimeout(onClose,360); };
+  useEffect(()=>{
+    const onKey=e=>{ if(e.key==="Escape") close(); };
+    window.addEventListener("keydown",onKey);
+    return ()=>window.removeEventListener("keydown",onKey);
+  },[]);
+  const winners=ranking.filter(r=>r.rank===1);
+  const podium=ranking.filter(r=>r.rank<=3).slice(0,3);
+  const names=winners.map(w=>`${w.firstName} ${w.lastName}`.trim()).join(" & ");
+  return (
+    <div className={"cer "+(closing?"is-closing":"")} role="dialog" aria-modal="true" aria-label="Annonce du vainqueur">
+      <div className="cer__rays" aria-hidden="true"></div>
+      <canvas className="cer__canvas" ref={canvasRef} aria-hidden="true"></canvas>
+      <button className="cer__close" onClick={close} aria-label="Fermer la cérémonie">✕</button>
+      <div className="cer__box">
+        <div className="cer__cup" aria-hidden="true">🏆</div>
+        <p className="cer__kicker">Champion du monde 2026</p>
+        <span className="cer__flag" aria-hidden="true">{flag(outcome.champion)}</span>
+        <h2 className="cer__champ">{outcome.champion}</h2>
+        <p className="cer__score">Finale : {outcome.score}</p>
+
+        <div className="cer__sep" aria-hidden="true"></div>
+
+        <div className="cer__winner">
+          <p className="cer__kicker" style={{animation:"none"}}>
+            {winners.length>1?"Vainqueurs du concours ex æquo":"Vainqueur du concours de pronostics"}
+          </p>
+          <div className="cer__winner-name">🥇 {names||"—"}</div>
+          <div className="cer__winner-pts">{winners[0]?winners[0].total:0}<small>points</small></div>
+          {winners[0] && (
+            <div style={{fontSize:12.5,color:"rgba(255,255,255,.7)",marginTop:4}}>
+              {winners[0].exact} score(s) exact(s) · {winners[0].issue} bonne(s) issue(s)
+            </div>
+          )}
+          {podium.length>1 && (
+            <div className="cer__podium">
+              {podium.map((p,i)=>(
+                <div className="cer__step" key={p.id||i}>
+                  <span aria-hidden="true">{medal(p.rank)}</span>
+                  <b>{p.firstName} {p.lastName}</b>
+                  <i>{p.total} pts</i>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="cer__actions">
+          <button className="btn btn--gold" onClick={close}>Voir le classement complet</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* Onglet public : suivi du classement en direct (sans mot de passe) */
 function RankingSpace(){
   const [loaded,setLoaded]=useState(false);
@@ -1100,14 +1285,29 @@ function RankingSpace(){
   },[]);
   const ranking=useMemo(()=>computeRanking(pool,official),[pool,official]);
   const hasResult=useMemo(()=>officialHasResult(official),[official]);
+  const outcome=useMemo(()=>finalOutcome(official),[official]);
+  /* ouverture automatique une seule fois par appareil, puis rejouable à la demande */
+  const [showCer,setShowCer]=useState(false);
+  useEffect(()=>{
+    if(!outcome || ranking.length===0) return;
+    const key=NS+"ceremony_seen";
+    if(LS.get(key)===outcome.champion) return;
+    LS.set(key,outcome.champion);
+    setShowCer(true);
+  },[outcome,ranking.length]);
   if(!loaded) return <div className="card"><p style={{textAlign:"center",color:"var(--muted)"}}>Chargement…</p></div>;
-  return (
+  return (<>
     <div className="card">
       <h2 className="section-title">📊 Classement</h2>
       <p className="section-sub">{pool.length} participant(s){CLOUD_ON?" · base partagée en direct":""}. Le classement progresse à chaque résultat officiel saisi par l'organisateur.</p>
+      {outcome && ranking.length>0 && (
+        <button className="btn btn--gold cer-replay" onClick={()=>setShowCer(true)}>🏆 Revoir la cérémonie</button>
+      )}
       <Leaderboard ranking={ranking} hasResult={hasResult} />
     </div>
-  );
+    {showCer && outcome && ranking.length>0 &&
+      <WinnerCeremony outcome={outcome} ranking={ranking} onClose={()=>setShowCer(false)} />}
+  </>);
 }
 
 /* ================================================================
